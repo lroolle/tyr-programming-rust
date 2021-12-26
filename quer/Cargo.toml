@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "quer",
+    "quer-py",
+    "quer-js",
+]

@@ -16,6 +16,7 @@
 - Rust Fungi
 - Roboust & Trust & Run Fast
 - Rusty Chrome
+- ~Tyr~: Try
 
 * DONE 开篇词｜让 Rust 成为你的下一门主力语言
 CLOSED: [2021-12-21 Tue 22:48]
@@ -1219,11 +1220,13 @@ fn print_syntect(s: &str, ext: &str) {
 3. [[https://github.com/XAMPPRocky/tokei][XAMPPRocky/tokei: Count your code, quickly. - GitHub]]
 4. [[https://github.com/spf13/cobra][spf13/cobra: A Commander for modern Go CLI interactions - GitHub]]
 
-** TODO 05｜get hands dirty：做一个图片服务器有多难？
+** DONE 05｜get hands dirty：做一个图片服务器有多难？
+CLOSED: [2021-12-26 Sun 15:48]
 :PROPERTIES:
 :ID:       20211225T155959.518199
 :END:
 :LOGBOOK:
+- State "DONE"       from "TODO"       [2021-12-26 Sun 15:48]
 - State "TODO"       from              [2021-12-21 Tue 22:58]
 :END:
 *** [[https://github.com/thumbor/thumbor][thumbor/thumbor: thumbor is an open-source photo thumbnail service by globo.c...]]
@@ -1634,6 +1637,720 @@ Engine trait 以及为每种 spec 实现 SpecTransform Trait。在 main.rs 里�
 以一句话总结：宏编程的主要流程就是实现若干 From 和 TryFrom，是不是很简单。
 #+end_quote
 *** 创建一个 SQL 方言
+
+#+begin_src rust :wrap results rust :exports both :crates '((sqlparser . "0.13"))
+// examples/dialect.rs
+
+use sqlparser::{dialect::GenericDialect, parser::Parser};
+
+fn main() {
+    let sql = "SELECT a a1, b, 123, myfunc(b), * \
+    FROM data_source \
+    WHERE a > b AND b < 100 AND c BETWEEN 10 AND 20 \
+    ORDER BY a DESC, b \
+    LIMIT 50 OFFSET 10";
+
+    let ast = Parser::parse_sql(&GenericDialect::default(), sql);
+    println!("{:#?}", ast);
+}
+#+end_src
+
+#+results:
+#+begin_results rust
+Ok(
+    [
+        Query(
+            Query {
+                with: None,
+                body: Select(
+                    Select {
+                        distinct: false,
+                        top: None,
+                        projection: [
+                            ExprWithAlias {
+                                expr: Identifier(
+                                    Ident {
+                                        value: "a",
+                                        quote_style: None,
+                                    },
+                                ),
+                                alias: Ident {
+                                    value: "a1",
+                                    quote_style: None,
+                                },
+                            },
+                            UnnamedExpr(
+                                Identifier(
+                                    Ident {
+                                        value: "b",
+                                        quote_style: None,
+                                    },
+                                ),
+                            ),
+                            UnnamedExpr(
+                                Value(
+                                    Number(
+                                        "123",
+                                        false,
+                                    ),
+                                ),
+                            ),
+                            UnnamedExpr(
+                                Function(
+                                    Function {
+                                        name: ObjectName(
+                                            [
+                                                Ident {
+                                                    value: "myfunc",
+                                                    quote_style: None,
+                                                },
+                                            ],
+                                        ),
+                                        args: [
+                                            Unnamed(
+                                                Identifier(
+                                                    Ident {
+                                                        value: "b",
+                                                        quote_style: None,
+                                                    },
+                                                ),
+                                            ),
+                                        ],
+                                        over: None,
+                                        distinct: false,
+                                    },
+                                ),
+                            ),
+                            Wildcard,
+                        ],
+                        from: [
+                            TableWithJoins {
+                                relation: Table {
+                                    name: ObjectName(
+                                        [
+                                            Ident {
+                                                value: "data_source",
+                                                quote_style: None,
+                                            },
+                                        ],
+                                    ),
+                                    alias: None,
+                                    args: [],
+                                    with_hints: [],
+                                },
+                                joins: [],
+                            },
+                        ],
+                        lateral_views: [],
+                        selection: Some(
+                            BinaryOp {
+                                left: BinaryOp {
+                                    left: BinaryOp {
+                                        left: Identifier(
+                                            Ident {
+                                                value: "a",
+                                                quote_style: None,
+                                            },
+                                        ),
+                                        op: Gt,
+                                        right: Identifier(
+                                            Ident {
+                                                value: "b",
+                                                quote_style: None,
+                                            },
+                                        ),
+                                    },
+                                    op: And,
+                                    right: BinaryOp {
+                                        left: Identifier(
+                                            Ident {
+                                                value: "b",
+                                                quote_style: None,
+                                            },
+                                        ),
+                                        op: Lt,
+                                        right: Value(
+                                            Number(
+                                                "100",
+                                                false,
+                                            ),
+                                        ),
+                                    },
+                                },
+                                op: And,
+                                right: Between {
+                                    expr: Identifier(
+                                        Ident {
+                                            value: "c",
+                                            quote_style: None,
+                                        },
+                                    ),
+                                    negated: false,
+                                    low: Value(
+                                        Number(
+                                            "10",
+                                            false,
+                                        ),
+                                    ),
+                                    high: Value(
+                                        Number(
+                                            "20",
+                                            false,
+                                        ),
+                                    ),
+                                },
+                            },
+                        ),
+                        group_by: [],
+                        cluster_by: [],
+                        distribute_by: [],
+                        sort_by: [],
+                        having: None,
+                    },
+                ),
+                order_by: [
+                    OrderByExpr {
+                        expr: Identifier(
+                            Ident {
+                                value: "a",
+                                quote_style: None,
+                            },
+                        ),
+                        asc: Some(
+                            false,
+                        ),
+                        nulls_first: None,
+                    },
+                    OrderByExpr {
+                        expr: Identifier(
+                            Ident {
+                                value: "b",
+                                quote_style: None,
+                            },
+                        ),
+                        asc: None,
+                        nulls_first: None,
+                    },
+                ],
+                limit: Some(
+                    Value(
+                        Number(
+                            "50",
+                            false,
+                        ),
+                    ),
+                ),
+                offset: Some(
+                    Offset {
+                        value: Value(
+                            Number(
+                                "10",
+                                false,
+                            ),
+                        ),
+                        rows: None,
+                    },
+                ),
+                fetch: None,
+            },
+        ),
+    ],
+)
+#+end_results
+
+
+写到第 9 行这里，你有没有突发奇想，如果 SQL 中的 FROM 子句后面可以接一个 URL 或者文件名该多好？
+
+#+begin_src rust :wrap results rust :exports both :crates '((sqlparser . "0.13"))
+use sqlparser::dialect::Dialect;
+
+#[derive(Debug, Default)]
+pub struct TyrDialect;
+
+// 创建自己的 sql 方言。TyrDialect 支持 identifier 可以是简单的 url
+impl Dialect for TyrDialect {
+    fn is_identifier_start(&self, ch: char) -> bool {
+        ('a'..='z').contains(&ch) || ('A'..='Z').contains(&ch) || ch == '_'
+    }
+
+    // identifier 可以有 ':', '/', '?', '&', '='
+    fn is_identifier_part(&self, c: char) -> bool {
+        ('a'..='z').contains(&c)
+            || ('A'..='Z').contains(&c)
+            || ('0'..='9').contains(&c)
+            || [':', '/', '?', '&', '=', '-', '_', '.'].contains(&c)
+    }
+}
+
+/// 测试辅助函数
+pub fn example_sql() -> String {
+    let url = "https://raw.githubusercontent.com/owid/covid-19-data/master/public/data/latest/owid-covid-latest.csv";
+
+    let sql = format!(
+        "SELECT location name, total_cases, new_cases, total_deaths, new_deaths \
+        FROM {} where new_deaths >= 500 ORDER BY new_cases DESC LIMIT 6 OFFSET 5",
+        url
+    );
+
+    sql
+}
+
+fn main() {
+    println!("sql: {:#?}", example_sql());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sqlparser::parser::Parser;
+
+    #[test]
+    fn it_works() {
+        assert!(Parser::parse_sql(&TyrDialect::default(), &example_sql()).is_ok());
+    }
+}
+#+end_src
+
+#+results:
+#+begin_results rust
+sql: "SELECT location name, total_cases, new_cases, total_deaths, new_deaths FROM https://raw.githubusercontent.com/owid/covid-19-data/master/public/data/latest/owid-covid-latest.csv where new_deaths >= 500 ORDER BY new_cases DESC LIMIT 6 OFFSET 5"
+#+end_results
+
+#+begin_quote
+Cool！你看，大约用了 10 行代码（第 7 行到第 19 行），通过添加可以让 URL 合法的字
+符，就实现了一个自己的支持 URL 的 SQL 方言解析。为什么这么厉害？因为通过 trait，
+你可以很方便地做控制反转（[[https://en.wikipedia.org/wiki/Inversion_of_control][Inversion of Control]]），在 Rust 开发中，这是很常见的一
+件事情。
+#+end_quote
+
+*** 实现 AST 的转换
+**** Tyr Polars
+#+begin_src rust :wrap results rust :exports both :crates '((reqwest . "0.11") (polars . "^0.18") (anyhow . "1.0") (tokio . "1.15")) :features '((polars . ("json" "lazy")) (tokio "full"))
+use anyhow::Result;
+use polars::prelude::*;
+use std::io::Cursor;
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    let url = "https://raw.githubusercontent.com/owid/covid-19-data/master/public/data/latest/owid-covid-latest.csv";
+    let data = reqwest::get(url).await?.text().await?;
+
+    let df = CsvReader::new(Cursor::new(data))
+        .infer_schema(Some(16))
+        .finish()?;
+
+    let filtered = df.filter(&df["new_deaths"].gt(500))?;
+    println!(
+        "{:?}",
+        filtered.select((
+            "location",
+            "total_cases",
+            "new_cases",
+            "total_deaths",
+            "new_deaths"
+        )).unwrap()
+    );
+
+    // let china  = df.filter(&df["location"].eq(0))?;
+    // println!(
+    //     "{:?}",
+    //     china.select((
+    //         "location",
+    //         "total_cases",
+    //         "new_cases",
+    //         "total_deaths",
+    //         "new_deaths"
+    //     )).unwrap()
+    // );
+    Ok(())
+}
+#+end_src
+
+#+results:
+: error: Could not compile `cargoBwvKQY`.
+
+**** 先定义一个数据结构 Sql 来描述两者的对应关系，然后再实现 Sql 的 TryFromtrait
+#+begin_src rust :wrap results rust :exports both
+/// 解析出来的 SQL
+pub struct Sql<'a> {
+    pub(crate) selection: Vec<Expr>,
+    pub(crate) condition: Option<Expr>,
+    pub(crate) source: &'a str,
+    pub(crate) order_by: Vec<(String, bool)>,
+    pub(crate) offset: Option<i64>,
+    pub(crate) limit: Option<usize>,
+}
+
+impl<'a> TryFrom<&'a Statement> for Sql<'a> {
+    type Error = anyhow::Error;
+    fn try_from(sql: &'a Statement) -> Result<Self, Self::Error> {
+        match sql {
+            // 目前我们只关心 query (select ... from ... where ...)
+            Statement::Query(q) => {
+                todo!()
+            }
+        }
+    }
+}
+#+end_src
+
+- 使用模式匹配将 Query::Select 取出来
+
+#+begin_src rust
+let Select {
+    from: table_with_joins,
+    selection: where_clause,
+    projection,
+
+    group_by: _,
+    ..
+} = match &q.body {
+    SetExpr::Select(statement) => statement.as_ref(),
+    _ => return Err(anyhow!("We only support Select Query at the moment")),
+}; :wrap results rust :exports both
+#+end_src
+
+- 以 Offset 为例，为其实现 From Trait
+#+begin_src rust :wrap results rust :exports both
+use sqlparser::ast::Offset as SqlOffset;
+
+// 因为 Rust trait 的孤儿规则，我们如果要想对已有的类型实现已有的 trait，
+// 需要简单包装一下
+
+pub struct Offset<'a>(pub(crate) &'a SqlOffset);
+
+/// 把 SqlParser 的 offset expr 转换成 i64
+impl<'a> From<Offset<'a>> for i64 {
+    fn from(offset: Offset) -> Self {
+        match offset.0 {
+            SqlOffset {
+                value: SqlExpr::Value(SqlValue::Number(v, _b)),
+                ..
+            } => v.parse().unwrap_or(0),
+            _ => 0,
+        }
+    }
+}
+#+end_src
+
+#+begin_quote
+我们写代码，主要都在处理什么？绝大多数处理逻辑都是把数据从一个接口转换成另一个接口。
+#+end_quote
+*** 从源中取数据
+**** Naive ~retrive_data~
+#+begin_src rust :wrap results rust :exports both
+/// 从文件源或者 http 源中获取数据
+async fn retrieve_data(source: impl AsRef<str>) -> Result<String> {
+    let name = source.as_ref();
+    match &name[..4] {
+        // 包括 http / https
+        "http" => Ok(reqwest::get(name).await?.text().await?),
+        // 处理 file://<filename>
+        "file" => Ok(fs::read_to_string(&name[7..]).await?),
+        _ => Err(anyhow!("We only support http/https/file at the moment")),
+    }
+}
+#+end_src
+
+**** Trait ~retrieve_data~
+#+begin_quote
+代码看起来很简单，但未来并不容易维护。因为一旦你的 HTTP 请求获得的结果需要做一些
+后续的处理，这个函数很快就会变得很复杂。那该怎么办呢？如果你回顾前两讲我们写的代
+码，相信你心里马上有了答案：
+
+*可以用 trait 抽取 fetch 的逻辑，定义好接口，然后改变 retrieve_data 的实现。*
+#+end_quote
+
+#+begin_src rust :wrap results rust :exports both
+use anyhow::{anyhow, Result};
+use async_trait::async_trait;
+use tokio::fs;
+
+// Rust 的 async trait 还没有稳定，可以用 async_trait 宏
+#[async_trait]
+pub trait Fetch {
+    type Error;
+    async fn fetch(&self) -> Result<String, Self::Error>;
+}
+
+/// 从文件源或者 http 源中获取数据，组成 data frame
+pub async fn retrieve_data(source: impl AsRef<str>) -> Result<String> {
+    let name = source.as_ref();
+    match &name[..4] {
+        "http" => UrlFetcher(name).fetch().await,
+        "file" => FileFetcher(name).fetch().await,
+        _ => return Err(anyhow!("We only support http/https/file at the moment")),
+    }
+}
+
+struct UrlFetcher<'a>(pub(crate) &'a str);
+struct FileFetcher<'a>(pub(crate) &'a str);
+
+#[async_trait]
+impl<'a> Fetch for UrlFetcher<'a> {
+    type Error = anyhow::Error;
+
+    async fn fetch(&self) -> Result<String, Self::Error> {
+        Ok(reqwest::get(self.0).await?.text().await?)
+    }
+}
+
+#[async_trait]
+impl<'a> Fetch for FileFetcher<'a> {
+    type Error = anyhow::Error;
+
+    async fn fetch(&self) -> Result<String, Self::Error> {
+        Ok(fs::read_to_string(&self.0[7..]).await?)
+    }
+}
+#+end_src
+
+*** 主流程
+**** Dataset
+#+begin_quote
+SQL 查询后的结果，会放在一个 polars 的 DataFrame 中，但我们不想直接暴露这个
+DataFrame 出去。因为一旦这么做，未来我们想加额外的 metadata，就无能为力了。所以
+我定义了一个 DataSet，包裹住 DataFrame。可是，我还想暴露 DataSet 的接口，它有好
+多函数，总不能挨个 proxy 吧？
+
+不用。Rust 提供了 Deref 和 DerefMut trait 做这个事情，它允许类型在解引用时，可以
+解引用到其它类型。我们后面在介绍 Rust 常用 trait 时，会详细介绍这两个 trait，现
+在先来看的 DataSet 怎么处理：
+#+end_quote
+
+#+begin_src rust :wrap results rust :exports both
+#[derive(Debug)]
+pub struct DataSet(DataFrame);
+
+/// 让 DataSet 用起来和 DataFrame 一致
+impl Deref for DataSet {
+    type Target = DataFrame;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl DerefMut for DataSet {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+// DataSet 自己的方法
+impl DataSet {
+    /// 从 DataSet 转换成 csv
+    pub fn to_csv(&self) -> Result<String> {
+        todo!()
+    }
+}
+#+end_src
+
+**** Query
+#+begin_src rust :wrap results rust :exports both
+use anyhow::{anyhow, Result};
+use polars::prelude::*;
+use sqlparser::parser::Parser;
+use std::convert::TryInto;
+use std::ops::{Deref, DerefMut};
+use tracing::info;
+
+mod convert;
+mod dialect;
+mod fetcher;
+mod loader;
+use convert::Sql;
+use fetcher::retrieve_data;
+use loader::detect_content;
+
+pub use dialect::example_sql;
+pub use dialect::TyrDialect;
+
+#[derive(Debug)]
+pub struct DataSet(DataFrame);
+
+impl DataSet {
+    /// 从 DataSet 转换成 csv
+    pub fn to_csv(&self) -> Result<String> {
+        let mut buf = Vec::new();
+        let writer = CsvWriter::new(&mut buf);
+        writer.finish(self)?;
+        Ok(String::from_utf8(buf)?)
+    }
+}
+
+/// 从 from 中获取数据，从 where 中过滤，最后选取需要返回的列
+pub async fn query<T: AsRef<str>>(sql: T) -> Result<DataSet> {
+    let ast = Parser::parse_sql(&TyrDialect::default(), sql.as_ref())?;
+
+    if ast.len() != 1 {
+        return Err(anyhow!("Only support single sql at the moment"));
+    }
+
+    let sql = &ast[0];
+
+    // 整个 SQL AST 转换成我们定义的 Sql 结构的细节都埋藏在 try_into() 中
+    // 我们只需关注数据结构的使用，怎么转换可以之后需要的时候才关注，这是
+    // 关注点分离，是我们控制软件复杂度的法宝。
+    let Sql {
+        source,
+        condition,
+        selection,
+        offset,
+        limit,
+        order_by,
+    } = sql.try_into()?;
+
+    info!("retrieving data from source: {}", source);
+
+    // 从 source 读入一个 DataSet
+    // detect_content，怎么 detect 不重要，重要的是它能根据内容返回 DataSet
+    let ds = detect_content(retrieve_data(source).await?).load()?;
+
+    let mut filtered = match condition {
+        Some(expr) => ds.0.lazy().filter(expr),
+        None => ds.0.lazy(),
+    };
+
+    filtered = order_by
+        .into_iter()
+        .fold(filtered, |acc, (col, desc)| acc.sort(&col, desc));
+
+    if offset.is_some() || limit.is_some() {
+        filtered = filtered.slice(offset.unwrap_or(0), limit.unwrap_or(usize::MAX));
+    }
+
+    Ok(DataSet(filtered.select(selection).collect()?))
+}
+#+end_src
+
+**** ~detect_content~
+#+begin_src rust :wrap results rust :exports both
+use crate::DataSet;
+use anyhow::Result;
+use polars::prelude::*;
+use std::io::Cursor;
+
+pub trait Load {
+    type Error;
+    fn load(self) -> Result<DataSet, Self::Error>;
+}
+
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum Loader {
+    Csv(CsvLoader),
+}
+
+#[derive(Default, Debug)]
+pub struct CsvLoader(pub(crate) String);
+
+impl Loader {
+    pub fn load(self) -> Result<DataSet> {
+        match self {
+            Loader::Csv(csv) => csv.load(),
+        }
+    }
+}
+
+pub fn detect_content(data: String) -> Loader {
+    Loader::Csv(CsvLoader(data))
+}
+
+impl Load for CsvLoader {
+    type Error = anyhow::Error;
+
+    fn load(self) -> Result<DataSet, Self::Error> {
+        let df = CsvReader::new(Cursor::new(self.0))
+            .infer_schema(Some(16))
+            .finish()?;
+        Ok(DataSet(df))
+    }
+}
+#+end_src
+
+*** 支持其他语言
+**** Python
+Rust 和 Python 交互的库是 [[https://github.com/PyO3/pyo3][PyO3]]，感兴趣你可以课后看它的文档。在 src/lib.rs 下，添入如下代码：
+#+begin_src rust :wrap results rust :exports both
+use pyo3::{exceptions, prelude::*};
+
+#[pyfunction]
+pub fn example_sql() -> PyResult<String> {
+    Ok(queryer::example_sql())
+}
+
+#[pyfunction]
+pub fn query(sql: &str, output: Option<&str>) -> PyResult<String> {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let data = rt.block_on(async { queryer::query(sql).await.unwrap() });
+    match output {
+        Some("csv") | None => Ok(data.to_csv().unwrap()),
+        Some(v) => Err(exceptions::PyTypeError::new_err(format!(
+            "Output type {} not supported",
+            v
+        ))),
+    }
+}
+
+#[pymodule]
+fn queryer_py(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(query, m)?)?;
+    m.add_function(wrap_pyfunction!(example_sql, m)?)?;
+    Ok(())
+}
+#+end_src
+
+*** Summary
+#+begin_quote
+在这么小的代码量下，我们在架构上做了很多为解耦考虑的工作：整个架构被拆成了 Sql
+Parser、Fetcher、Loader 和 query 四个部分。
+
+其中未来可能存在变化的 Fetcher 和 Loader 可以轻松扩展，比如我们一开始提到的那个
+“select * from ps”，可以用一个 StdoutFetcher 和 TsvLoader 来处理。
+#+end_quote
+
+[[https://cdn.jsdelivr.net/gh/lroolle/p/s/20211226T165910-33bd-tyr-06-arch.png]]
+
+#+begin_quote
+回顾这周的 Rust 代码之旅，我们先做了个 HTTPie，流程简单，青铜级难度，你学完所有
+权，理解了基本的 trait 后就能写。之后的 Thumbor，引入了异步、泛型和更多的 trait，
+白银级难度，在你学完类型系统，对异步稍有了解后，应该可以搞定。今天的 Queryer，使
+用了大量的 trait ，来让代码结构足够符合开闭原则和关注点分离，用了不少生命周期标
+注，来减少不必要的内存拷贝，还做了不少复杂的模式匹配来获取数据，是黄金级难度，在
+学完本课程的进阶篇后，你应该可以理解这些代码。
+#+end_quote
+
+
+#+begin_quote
+编译器如此不喜欢我的写法，会不会我的设计本身就有问题呢？我是不是该使用更好的数据
+结构？我是不是该重新设计一下？我的代码是不是过度耦合了？就像茴香豆的茴字有四种写
+法一样，同一个需求，用相同的语言，不同的人也会有不同的写法。但是，优秀的设计一定
+是产生简单易读的代码，而不是相反。
+#+end_quote
+*** Q: neon?
+
+#+begin_quote
+思考题 Node.js 的处理和 Python 非常类似，但接口不太一样，就作为今天的思考题让你
+尝试一下。小提示：Rust 和 nodejs 间交互可以使用 neon。
+#+end_quote
+*** Read More
+
+#+begin_quote
+我们的 queryer 库目前使用到了操作系统的功能，比如文件系统，所以它无法被编译成
+WebAssembly。未来如果能移除对操作系统的依赖，这个代码还能被编译成 WASM，供 Web
+前端使用。
+#+end_quote
+
+#+begin_quote
+如果想在 iOS/Android 下使用这个库，可以用类似 Python/Node.js 的方法做接口封装，
+Mozilla 提供了一个 uniffi 的库，它自己的 Firefox 各个端也是这么处理的：
+#+end_quote
+
+[[https://cdn.jsdelivr.net/gh/lroolle/p/s/20211226T170526-c325-tyr-06-uniffi-iso-android.png]]
+
+- [[https://github.com/tauri-apps/tauri][GitHub - tauri-apps/tauri: Build smaller, faster, and more secure desktop app...]]
+
+  => data_viewer
 *** Links
 1. https://github.com/serde-rs/serde
 2. https://en.wikipedia.org/wiki/Parser_combinator
@@ -1644,6 +2361,9 @@ Engine trait 以及为每种 spec 实现 SpecTransform Trait。在 main.rs 里�
 7. https://pandas.pydata.org/pandas-docs/stable/index.html
 8. https://github.com/pola-rs/polars
 9. https://en.wikipedia.org/wiki/Abstract_syntax_tree
+10. [[https://en.wikipedia.org/wiki/Inversion_of_control][Inversion of control - Wikipedia]]
+11. [[https://en.wikipedia.org/wiki/Write-ahead_logging][Write-ahead logging - Wikipedia]]
+12. [[https://en.wikipedia.org/wiki/Separation_of_concerns][Separation of concerns - Wikipedia]]
 
 ** TODO 07｜所有权：值的生杀大权到底在谁手上？
 :LOGBOOK:
