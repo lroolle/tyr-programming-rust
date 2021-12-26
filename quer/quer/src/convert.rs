@@ -17,7 +17,6 @@ pub struct Sql<'a> {
 
 // 因为 Rust trait 的孤儿规则，我们如果要想对已有的类型实现已有的 trait，
 // 需要简单包装一下
-
 pub struct Expression(pub(crate) Box<SqlExpr>);
 pub struct Operation(pub(crate) SqlBinaryOperator);
 pub struct Projection<'a>(pub(crate) &'a SelectItem);
@@ -125,6 +124,7 @@ impl TryFrom<Operation> for Operator {
             SqlBinaryOperator::NotEq => Ok(Self::NotEq),
             SqlBinaryOperator::And => Ok(Self::And),
             SqlBinaryOperator::Or => Ok(Self::Or),
+            // SqlBinaryOperator::Like => Ok(Self::Like),
             v => Err(anyhow!("Operator {} is not supported", v)),
         }
     }
@@ -217,9 +217,12 @@ impl<'a> From<Limit<'a>> for usize {
 impl TryFrom<Value> for LiteralValue {
     type Error = anyhow::Error;
     fn try_from(v: Value) -> Result<Self, Self::Error> {
+        println!("v: {:?}", v.0);
         match v.0 {
             SqlValue::Number(v, _) => Ok(LiteralValue::Float64(v.parse().unwrap())),
             SqlValue::Boolean(v) => Ok(LiteralValue::Boolean(v)),
+            SqlValue::HexStringLiteral(v) => Ok(LiteralValue::Utf8(v)),
+            SqlValue::SingleQuotedString(v) => Ok(LiteralValue::Utf8(v)),
             SqlValue::Null => Ok(LiteralValue::Null),
             v => Err(anyhow!("Value {} is not supported", v)),
         }

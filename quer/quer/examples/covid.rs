@@ -16,5 +16,13 @@ async fn main() -> Result<()> {
     let df1 = query(sql).await?;
     println!("{:?}", df1);
 
+    let sql = format!(
+        "SELECT location name, total_cases, new_cases, total_deaths, new_deaths \
+        FROM {} where location = 'China' ORDER BY new_cases DESC",
+        url
+    );
+    let df1 = query(sql).await?;
+    println!("{:?}", df1);
+
     Ok(())
 }
