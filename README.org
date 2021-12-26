@@ -1,0 +1,2349 @@
+:PROPERTIES:
+:ID:       fee91f64-8fca-4ed3-bd62-05ae117277c9
+:END:
+#+TITLE: Rusty
+#+DATE: 2021-10-10 21:36
+#+STARTUP: overview
+#+EXPORT_FILE_NAME: Rusty
+#+HUGO_WEIGHT: auto
+#+HUGO_BASE_DIR: ~/G/blog
+#+HUGO_AUTO_SET_LASTMOD: t
+#+HUGO_SECTION: notes
+#+HUGO_CATEGORIES: notes
+#+HUGO_TAGS: notes
+
+* "Rust"
+- Rust Fungi
+- Roboust & Trust & Run Fast
+- Rusty Chrome
+
+* DONE 开篇词｜让 Rust 成为你的下一门主力语言
+CLOSED: [2021-12-21 Tue 22:48]
+:LOGBOOK:
+- State "DONE"       from "TODO"       [2021-12-21 Tue 22:48]
+- State "TODO"       from              [2021-12-21 Tue 22:48]
+:END:
+** 首先，你使用起来就会感受到，Rust 是一门非常重视开发者用户体验的语言
+** 其次，众所周知的优异性能和强大的表现力，让 Rust 在很多场合都能够施展拳脚
+[[https://cdn.jsdelivr.net/gh/lroolle/p/s/20211219T211530-1701-tyr-rust-eco.png]]
+Rust 生态
+** 最后，是我自己的使用感觉，Rust 会越用越享受
+#+begin_quote
+以我个人的开发经验看，很多语言你越深入使用或者越广泛使用，就越会有 “怒其不争” 的感觉，因为要么掣肘很多，无法施展；要么繁文缛节太多，在性能和简洁之间很难二选一。
+#+end_quote
+** 学习 Rust 的难点
+1. 变量的所有权和生命周期
+2. 学习过程中，在所有权和生命周期之外，语言背景不同的工程师也会有不同难点，你可以重点学习：
+   - C 开发者，难点是类型系统和泛型编程；
+   - C++ 开发者，难点主要在类型系统；
+   - Python/Ruby/JavaScript 开发者，难点在并发处理，类型系统及泛型编程；
+   - Java 开发者，难点在异步处理和并发安全的理解上；
+   - Swift 开发者，几乎没有额外的难点，深入理解 Rust 异步处理即可。
+** 如何学好 Rust？
+*** 精准学习
+- 精准学习：第一性原理：回归事物最基础的条件，将其拆分成基本要素解构分析，来探索要解决的问题
+#+begin_quote
+所谓精准学习，就是深挖一个个高大上的表层知识点，回归底层基础知识的本原，再使用类比、联想等方法，打通涉及的基础知识；然后从底层设计往表层实现，一层层构建知识体系，这样 “撒一层土，夯实，再撒一层”，让你对知识点理解得更透彻、掌握得牢固。
+#+end_quote
+
+[[https://cdn.jsdelivr.net/gh/lroolle/p/s/20211219T212235-3106-tyr-first-principle.png]]
+
+*** 刻意练习
+- 刻意练习：这个过程就像子思在《中庸》里谈治学的方法：博学之，审问之，慎思之，明辨之，笃行之。
+[[https://cdn.jsdelivr.net/gh/lroolle/p/s/20211219T212344-2c96-tyr-learn-and-practice.png]]
+** 专栏课程模块
+1. 前置知识篇
+2. 基础知识篇
+3. 进阶篇
+4. 并发篇
+5. 实战篇
+
+[[https://cdn.jsdelivr.net/gh/lroolle/p/s/20211219T213219-046e-tyr-course-outline.png]]
+
+* 前置篇 (3 讲)
+** DONE 01｜内存：值放堆上还是放栈上，这是一个问题
+CLOSED: [2021-12-21 Tue 22:48]
+:LOGBOOK:
+- State "DONE"       from "TODO"       [2021-12-21 Tue 22:48]
+- State "TODO"       from              [2021-12-21 Tue 22:48]
+:END:
+*** 内存
+#+begin_src rust :wrap results :exports both
+let s = "hello world".to_string();
+
+println!("addr of ss: {:p}, s: {:p}, len: {}, capacity: {}, size: {}",
+    &"hello world", &s, s.len(), s.capacity(), std::mem::size_of_val(&s));
+#+end_src
+
+#+results:
+#+begin_results
+addr of ss: 0x1025b7220, s: 0x7ffeed685c28, len: 11, capacity: 11, size: 24
+#+end_results
+
+#+begin_quote
+首先，“hello world” 作为一个字符串常量（string literal），在编译时被存入可执行文件的 .RODATA 段（GCC）或者 .RDATA 段（VC++），然后在程序加载时，获得一个固定的内存地址。
+
+当执行 “hello world”.to_string () 时，在堆上，一块新的内存被分配出来，并把 “hello world” 逐个字节拷贝过去。当我们把堆上的数据赋值给 s 时，s 作为分配在栈上的一个变量，它需要知道堆上内存的地址，另外由于堆上的数据大小不确定且可以增长，我们还需要知道它的长度以及它现在有多大。
+
+最终，为了表述这个字符串，我们使用了三个 word：第一个表示指针、第二个表示字符串的当前长度（11）、第三个表示这片内存的总容量（11）。在 64 位系统下，三个 word 是 24 个字节。
+#+end_quote
+[[https://cdn.jsdelivr.net/gh/lroolle/p/s/20211219T214012-05e2-tyr-string-in-mem.png]]
+
+*** 数据什么时候可以放在栈上，什么时候需要放在堆上呢？
+**** 栈
+
+#+begin_quote
+栈是程序运行的基础。每当一个函数被调用时，一块连续的内存就会在栈顶被分配出来，这块内存被称为帧（frame）。
+
+我们知道，栈是自顶向下增长的，一个程序的调用栈最底部，除去入口帧（entry frame），就是 main () 函数对应的帧，而随着 main () 函数一层层调用，栈会一层层扩展；调用结束，栈又会一层层回溯，把内存释放回去。
+
+在调用的过程中，一个新的帧会分配足够的空间存储寄存器的上下文。 在函数里使用到的通用寄存器会在栈保存一个副本，当这个函数调用结束，通过副本，可以恢复出原本的寄存器的上下文，就像什么都没有经历一样。
+此外，函数所需要使用到的局部变量，也都会在帧分配的时候被预留出来。
+#+end_quote
+
+[[https://cdn.jsdelivr.net/gh/lroolle/p/s/20211219T214443-f95c-tyr-stack.png]]
+
+#+begin_quote
+那一个函数运行时，怎么确定究竟需要多大的帧呢？这要归功于编译器。在编译并优化代码的时候， *一个函数就是一个最小的编译单元* 。
+
+在这个函数里，编译器得知道要用到哪些寄存器、栈上要放哪些局部变量，而这些都要在编译时确定。
+
+所以编译器就需要明确每个局部变量的大小，以便于预留空间。这下我们就明白了：
+在编译时， *一切无法确定大小或者大小可以改变的数据，都无法安全地放在栈上，最好放在堆上* 。
+#+end_quote
+
+#+begin_src rust :wrap results rust :exports both
+fn say_name(name: String) {}
+
+// 调用的时候才知道 name 的 size
+say_name("Lindsey".to_string());
+say_name("Rosie".to_string());
+#+end_src
+**** 放栈上的问题
+1. 栈上的内存分配是非常高效的
+   只需要改动栈指针（stack pointer）， 就可以预留相应的空间；把栈指针改动回来，预留的空间又会被释放掉。
+   预留和释放只是动动寄存器，不涉及额外计算、不涉及系统调用，因而效率很高。
+2. 考虑到调用栈的大小，避免栈溢出（stack overflow）
+   一旦当前程序的调用栈超出了系统允许的最大栈空间，无法创建新的帧，来运行下一个要执行的函数，就会发生栈溢出，这时程序会被系统终止，产生崩溃信息。
+   过大的栈内存分配是导致栈溢出的原因之一，更广为人知的原因是递归函数没有妥善终止。
+   一个递归函数会不断调用自己，每次调用都会形成一个新的帧，如果递归函数无法终止，最终就会导致栈溢出。
+
+**** 堆
+***** 动态大小
+#+begin_quote
+当我们需要动态大小的内存时，只能使用堆，比如可变长度的数组、列表、哈希表、字典，它们都分配在堆上。
+堆上分配内存时，一般都会预留一些空间，这是最佳实践。
+#+end_quote
+
+#+begin_src rust :wrap results :exports both
+let mut arr = Vec::new();
+arr.push(1);
+arr.push(2);
+println!("capacity: {:?} memsize:{:?}", arr.capacity(), std::mem::size_of_val(&arr));
+// => 为了避免频繁 malloc，实际分配的空间会稍大；
+#+end_src
+
+#+results:
+#+begin_results
+capacity: 4 memsize:24
+#+end_results
+
+***** 动态生命周期
+#+begin_quote
+除了动态大小的内存需要被分配到堆上外，动态生命周期的内存也需要分配到堆上。
+#+end_quote
+
+[[https://cdn.jsdelivr.net/gh/lroolle/p/s/20211219T215705-b10a-tyr-dyn-life-in-heap.png]]
+
+**** 放堆上的问题
+1. 忘记释放 => 内存泄漏
+2. 过早释放，野指针 => 堆越界（heap out of bounds）
+3. 使用已释放内存（use after free）
+**** GC、ARC 如何解决
+#+begin_quote
+GC 在内存分配和释放上无需额外操作，而 ARC 添加了大量的额外代码处理引用计数，所以 GC 效率更高，吞吐量（throughput）更大
+但是，GC 释放内存的时机是不确定的，释放时引发的 STW（Stop The World），也会导致代码执行的延迟（latency）不确定。
+#+end_quote
+
+#+begin_quote
+说句题外话，上面说的 GC 性能和我们常说的性能，涵义不太一样。
+常说的性能是吞吐量和延迟的总体感知，和实际性能是有差异的，GC 和 ARC 就是典型例子。
+GC 分配和释放内存的效率和吞吐量要比 ARC 高，但因为偶尔的高延迟，导致被感知的性能比较差，
+所以会给人一种 GC 不如 ARC 性能好的感觉。
+#+end_quote
+
+*** Summary
+1. 分析了栈和堆的特点。
+2. 对于存入栈上的值，它的大小在编译期就需要确定。 栈上存储的变量生命周期在当前调用栈的作用域内，无法跨调用栈引用。
+3. 堆可以存入大小未知或者动态伸缩的数据类型。
+   堆上存储的变量，其生命周期从分配后开始，一直到释放时才结束，因此堆上的变量允许在多个调用栈之间引用。
+   但也导致堆变量的管理非常复杂，手工管理会引发很多内存安全性问题，而自动管理，无论是 GC 还是 ARC，
+   都有性能损耗和其它问题。
+4. 一句话对比总结就是：栈上存放的数据是静态的，固定大小，固定生命周期；堆上存放的数据是动态的，不固定大小，不固定生命周期。
+*** Q: 如果有一个数据结构需要在多个线程中访问，可以把它放在栈上吗？为什么？
+*** Q: 可以使用指针引用栈上的某个变量吗？如果可以，在什么情况下可以这么做？
+
+*** Links
+1. 微软安全反应中心 [[https://github.com/Microsoft/MSRC-Security-Research/blob/master/presentations/2019_02_BlueHatIL/2019_01%20-%20BlueHatIL%20-%20Trends%2C%20challenge%2C%20and%20shifts%20in%20software%20vulnerability%20mitigation.pdf][MSRC-Security-Research/2019_01 - BlueHatIL - Trends, challenge, and shifts in...]]
+2. [[https://en.wikipedia.org/wiki/Tracing_garbage_collection][Tracing garbage collection - Wikipedia]]
+3. [[https://en.wikipedia.org/wiki/Automatic_Reference_Counting][Automatic Reference Counting - Wikipedia]]
+4. https://erlang.org/doc/apps/erts/GarbageCollection.html
+
+** DONE 02｜串讲：编程开发中，那些你需要掌握的基本概念
+CLOSED: [2021-12-21 Tue 22:48]
+:LOGBOOK:
+- State "DONE"       from "TODO"       [2021-12-21 Tue 22:48]
+- State "TODO"       from              [2021-12-21 Tue 22:48]
+:END:
+*** 数据
+**** 值和类型
+- 类型是对值的区分，它包含了值在内存中的 *长度、对齐以及值可以进行的操作等信息* 。
+- 一个值是符合一个特定类型的数据的某个实体。比如 64u8，它是 u8 类型，对应一个字节大小、取值范围在 0～255 的某个整数实体，这个实体是 64。
+- 值是无法脱离具体的类型讨论的
+[[https://cdn.jsdelivr.net/gh/lroolle/p/s/20211220T220919-1d1b-tyr-primitive-types.png]]
+
+***** 原生类型（primitive type）
+- 比如字符、整数、浮点数、布尔值、数组（array）、元组（tuple）、指针、引用、函数、闭包等。
+- 所有原生类型的大小都是固定的，因此它们可以被分配到栈上。
+***** 组合类型（composite type）
+或者说复合类型，是指由一组原生类型和其它类型组合而成的类型。组合类型也可以细分为两类：
+- 结构体（structure type）：多个类型组合在一起共同表达一个值的复杂数据结构。
+  比如 Person 结构体，内部包含 name、age、email 等信息。用代数数据类型（algebraic data type）的说法，结构体是 product type。
+- 标签联合（tagged union）：也叫不相交并集（disjoint union），可以存储一组不同但固定的类型中的某个类型的对象，具体是哪个类型由其标签决定。
+  比如 Haskell 里的 Maybe 类型，或者 Swift 中的 Optional 就是标签联合。用代数数据类型的说法，标签联合是 sum type。
+
+**** 指针和引用
+- 在内存中，一个值被存储到内存中的某个位置，这个位置对应一个内存地址。 *指针是一个持有内存地址的值* 。
+  可以通过解引用（deference）来访问它指向的内存地址，理论上可以解引用到任意数据类型。
+- 引用（reference）和指针非常类似，不同的是， *引用的解引用访问是受限的，它只能解引用到它引用数据的类型，不能用作它用* 。
+  比如，指向 42u8 这个值的一个引用，它解引用的时候只能使用 u8 数据类型。
+- *指针和引用是原生类型，它们可以分配在栈上。*
+- 胖指针（fat pointer）。
+  比如指向 "hello world" 字符串的指针，包含字符串长度和容量。
+
+**** 指针和引用的区别
+#+begin_quote
+指针存放的是地址，指针可以被重新赋值，可以在初始化时指向一个对象，在其它时刻也可以指向另一个对象，而引用非常专一，它会从一而终，它总是指向它最初代表的那个对象。再举个形象点的例子，有一个人叫特朗普，为他起个引用别名叫历史上最傻吊的总统，这个引用一定会从一而终，即无论什么时候，历史上最傻吊的总统一定是特朗普。而美国总统可以当作个指针，一段时间可以是奥巴马，过一段时间可以是特朗普，再过一段时间可能是 nullptr。指针在声明时可以暂时不初始化，即 pointer = nullptr，指针在生命周期内随时都可能是空指针，所以在每次使用时都要做检查，防止出现空指针异常问题，而引用却不需要做检查，因为引用永远都不会为空，它一定有本体，一定得代表某个对象，引用在创建的同时必须被初始化。
+
+> [[HTtps://www.zhihu.com/question/37608201][C++中，引用和指针的区别是什么？ - 知乎]]
+#+end_quote
+
+*** 代码
+**** 函数、方法和闭包
+
+***** 函数(function)
+- 函数是编程语言的基本要素，它是对完成某个功能的一组相关语句和表达式的封装。
+- *函数也是对代码中重复行为的抽象。*
+- 在现代编程语言中，函数往往是一等公民，这意味着函数可以作为参数传递，或者作为返回值返回，也可以作为复合类型中的一个组成部分。
+***** 方法(method)
+  - 在面向对象的编程语言中，在类或者对象中定义的函数，被称为方法（method）。
+  - 方法往往和对象的指针发生关系，比如 Python 对象的 self 引用，或者 Java 对象的 this 引用。
+***** 闭包(closure)
+- 闭包是将函数，或者说代码和其环境一起存储的一种数据结构。
+- 闭包引用的上下文中的自由变量，会被捕获到闭包的结构中，成为闭包类型的一部分。
+  一般来说，如果一门编程语言，其函数是一等公民，那么它必然会支持闭包（closure），因为函数作为返回值往往需要返回一个闭包。
+
+#+name: closure-example
+#+begin_src rust :wrap results rust :exports both
+let a = "Hello";
+let b = "Tyr";
+
+let c = |msg: &str| {
+    println!("{} {}: {}", a, b, msg);
+};
+
+c("How are you?");
+#+end_src
+
+#+results:
+#+begin_results rust
+Hello Tyr: How are you?
+#+end_results
+[[https://cdn.jsdelivr.net/gh/lroolle/p/s/20211220T222104-6c43-tyr-function-method-closure.png]]
+
+**** 接口和虚表
+***** 接口
+- 接口是一个软件系统开发的核心部分，它反映了系统的设计者对系统的抽象理解。
+- 作为一个抽象层， *接口将使用方和实现方隔离开来，使两者不直接有依赖关系* ，大大提高了复用性和扩展性。
+***** 虚表
+- 当我们在运行期使用接口来引用具体类型的时候，代码就具备了运行时多态的能力。
+  但是，在运行时，一旦使用了关于接口的引用，变量原本的类型被抹去，我们无法单纯从一个指针分析出这个引用具备什么样的能力。
+- 因此，在生成这个引用的时候，我们需要构建胖指针，除了指向数据本身外，还需要指向一张涵盖了这个接口所支持方法的列表。
+  这个列表，就是我们熟知的虚表（virtual table）。
+[[https://cdn.jsdelivr.net/gh/lroolle/p/s/20211220T223250-2488-tyr-interface-and-vtable.png]]
+*** 运行方式
+**** 并发（concurrency）与并行（parallel）
+***** 并发
+- 并发是同时与多件事情打交道的能力，比如系统可以在任务 1 做到一定程度后，保存该任务的上下文，挂起并切换到任务 2，然后过段时间再切换回任务 1。
+- 并发是一种能力。
+***** 并行
+- 并行是同时处理多件事情的手段。也就是说，任务 1 和任务 2 可以在同一个时间片下工作，无需上下文切换。
+- 而并行是一种手段。
+
+[[https://cdn.jsdelivr.net/gh/lroolle/p/s/20211220T223632-776d-tyr-concurrency-vs-parallel.png]]
+**** 同步和异步
+***** 同步
+- 同步是指一个任务开始执行后，后续的操作会阻塞，直到这个任务结束。
+  在软件中，我们大部分的代码都是同步操作，比如 CPU，只有流水线中的前一条指令执行完成，才会执行下一条指令。
+  一个函数 A 先后调用函数 B 和 C，也会执行完 B 之后才执行 C。
+  同步执行保证了代码的因果关系（causality），是程序正确性的保证。
+  然而在遭遇 I/O 处理时，高效 CPU 指令和低效 I/O 之间的巨大鸿沟，成为了软件的性能杀手。
+***** 异步
+- 异步是指一个任务开始执行后，与它没有因果关系的其它任务可以正常执行，不必等待前一个任务结束。
+- 在异步操作里，异步处理完成后的结果，一般用 Promise 来保存，它是一个对象，用来描述在未来的某个时刻才能获得的结果的值，一般存在三个状态；
+  - 初始状态，Promise 还未运行；
+  - 等待（pending）状态，Promise 已运行，但还未结束；
+  - 结束状态， Promise 成功解析出一个值，或者执行失败
+
+#+begin_quote
+如果你对 Promise 这个词不太熟悉，在很多支持异步的语言中，Promise 也叫 Future / Delay / Deferred 等。除了这个词以外，我们也经常看到 async/await 这对关键字。一般而言，async 定义了一个可以并发执行的任务，而 await 则触发这个任务并发执行。大多数语言中，async/await 是一个语法糖（syntactic sugar），它使用状态机将 Promise 包装起来，让异步调用的使用感觉和同步调用非常类似，也让代码更容易阅读。
+#+end_quote
+*** 编程范式(范型)
+为了在不断迭代时，更好地维护代码， *我们还会引入各种各样的编程范式，来提升代码的质量* 。
+**** 数据结构的泛型(参数化类型或者参数多态)
+#+begin_src rust :wrap results rust :exports both
+struct Connection<S> {
+    io: S,
+    state: State,
+}
+#+end_src
+
+- *可以把参数化数据结构理解成一个产生类型的函数，在 “调用” 时，它接受若干个使用了具体类型的参数，返回携带这些类型的类型* 。
+  比如我们为 S 提供 TcpStream 这个类型，那么就产生 Connection 这个类型，其中 io 的类型是 TcpStream。
+
+***** Q: 如果 S 可以是任意类型，那我们怎么知道 S 有什么行为？如果我们要调用 io.send() 发送数据，编译器怎么知道 S 包含这个方法？
+我们需要用接口对 S 进行约束。
+所以我们经常看到，支持泛型编程的语言，会提供强大的接口编程能力，在后续的课程中在讲 Rust 的 trait 时，我会再详细探讨这个问题。
+
+数据结构的泛型是一种高级抽象，就像我们人类用数字抽象具体事物的数量，又发明了代数来进一步抽象具体的数字一样。
+它带来的好处是我们可以延迟绑定，让数据结构的通用性更强，适用场合更广阔；也大大减少了代码的重复，提高了可维护性。
+
+**** 代码的泛型化
+- 二分查找例子：
+[[https://cdn.jsdelivr.net/gh/lroolle/p/s/20211220T224910-d9fd-tyr-procedure-abstraction.png]]
+
+#+begin_quote
+左边用 C 撰写的二分查找，标记的几处操作隐含着和 int [] 有关，所以如果对不同的数据类型做二分查找，实现也要跟着改变。右边 C++ 的实现，对这些地方做了抽象，让我们可以用同一套代码二分查找迭代器（iterator）的数据类型。
+#+end_quote
+*** Summary
+[[https://cdn.jsdelivr.net/gh/lroolle/p/s/20211220T225138-ed53-tyr-02-summary.png]]
+**** [SICP] Ask about a new language
+1. What are the primitive elements?
+2. What are means of combination?
+3. What are means abstraction?
+*** Q: 1. 有一个指向某个函数的指针，如果将其解引用成一个列表，然后往列表中插入一个元素，请问会发生什么？（对比不同语言，看看这种操作是否允许，如果允许会发生什么）
+**** A: C 语言是可以把一个函数指针解引用为一个列表的，往列表中插入一个元素会报错，这是因为函数是代码，在内存中通常会存放在只读区域，对这部分内存写会报错；
+*** Q: 2. 要构造一个数据结构 Shape，可以是 Rectangle、 Circle 或是 Triangle，这三种结构见如下代码。请问 Shape 类型该用什么数据结构实现？怎么实现？
+#+name: shapes
+#+begin_src rust :wrap results rust :exports both
+struct Rectangle {
+    a: f64,
+    b: f64,
+}
+
+struct Circle {
+    r: f64,
+}
+
+struct Triangle {
+    a: f64,
+    b: f64,
+    c: f64,
+}
+#+end_src
+
+**** A: Enum
+#+name: shapeenum
+#+begin_src rust :wrap results rust :exports both :include '("shapes")
+#[derive(Debug)]
+pub enum ShapeEnum {
+    Rectangle(f64, f64),
+    Circle(f64),
+    Triangle(f64, f64, f64),
+}
+#+end_src
+
+*** Q: 3. 对于上面的三种结构，如果我们要定义一个接口，可以计算周长和面积，怎么计算？
+**** A: impl trait
+#+name: shapetrait
+#+begin_src rust :wrap results rust :exports both :include '("shapeenum")
+#[derive(Debug)]
+pub struct Shape {
+    pub shape: ShapeEnum,
+}
+
+impl Shape {
+    pub fn new(shape: ShapeEnum) -> Shape {
+        Shape { shape: shape }
+    }
+}
+
+pub trait Calculate {
+    fn perimeter(&self) -> f64;
+    fn area(&self) -> f64;
+}
+
+impl Calculate for Shape {
+    fn perimeter(&self) -> f64 {
+        match self.shape {
+            ShapeEnum::Rectangle(a, b) => 2.0 * (a + b),
+            ShapeEnum::Circle(r) => 2.0 * 3.14 * r,
+            ShapeEnum::Triangle(a, b, c) => a + b + c,
+        }
+    }
+    fn area(&self) -> f64 {
+        match self.shape {
+            ShapeEnum::Rectangle(a, b) => a * b,
+            ShapeEnum::Circle(r) => 3.14 * r * r,
+            ShapeEnum::Triangle(a, b, c) => {
+                let p = (a + b + c) / 2.0;
+                (p * (p - a) * (p - b) * (p - c)).sqrt()
+            }
+        }
+    }
+}
+
+fn main() {
+    let s = Shape {
+        shape: ShapeEnum::Circle(3f64),
+    };
+    println!("area: {}, preimeter: {}", s.area(), s.perimeter());
+}
+#+end_src
+
+#+results: shapetrait
+#+begin_results rust
+area: 28.259999999999998, preimeter: 18.84
+#+end_results
+
+*** Q: 在编译时，一切无法确定大小或者大小可以改变的数据，都无法放在栈上，只能放在堆上？
+
+我对这句话感到困惑，那可变长参数呢？可变长参数也属于在编译时无法确认大小的，难道
+也放在堆上？我搜索了一下发现 rust 似乎不支持可变长参数的函数，也不支持函数重载。
+所以我在想这种堆栈的特性是否是 rust 独有的。因为至少，Java 就是支持可变长参数的，
+但是我目前没找到资料说明 Java 的可变长参数是如何实现再栈上。
+
+作者回复：嗯，这是个好问题。这句话我表述地太绝对了。应该修改为：
+
+「在编译时，一切无法确定大小或者大小可以改变的数据，都无法 *安全地* 放在栈上，
+*最好* 放在堆上」。
+
+可变参数的函数是一个很好的例子。对于 Java，可变参数 ~String... a~ 是 ~String []~
+的语法糖，它是放在堆上的。在 C 语言里，这个行为是未定义的，它只是定义了你可以通
+过 ~var_start/var_end~ 来获得可变参数的起始位置，以及最终结束可变参数的访问。但
+~gcc~ 的实现将可变参数放在栈上（估计是为了性能）。比如 C，你可以用
+~var_start/var_end~ 获取可变参数，但如果不小心处理， 会导致访问栈上的垃圾内容，
+甚至导致程序崩溃：
+
+#+begin_src C
+#include <stdarg.h>
+#include <stdio.h>
+
+int sum(int count, ...) {
+  va_list ap;
+  int i;
+  double sum = 0;
+
+  va_start(ap, count);
+  for (i = 0; i < count; i++) {
+    sum += va_arg(ap, int);
+  }
+  va_end(ap);
+
+  return sum;
+}
+
+int main(int argc, char const *argv[]) {
+  printf("% d\n", sum(10, 1, 2, 3)); // 传入 3 个值但 count 为 10
+  return 0;
+}
+#+end_src
+
+#+results:
+: -1039638838
+
+同时谢谢 c4f 的提醒， * ~alloca()~ 可以在栈上分配动态大小的内存* ，然而使用它需
+要非常小心，按 [[https://man7.org/linux/man-pages/man3/alloca.3.html][Linux 的文档]] 官方建议配合 ~longjmp~ 使用。 ~alloca()~ 如果分配太大
+的数据，超过栈容量会导致程序崩溃，即使你分配很小的数据，但如果使用 ~alloca()~ 的
+函数被优化导致 ~inline~ ，又恰巧出现在大的 ~for/while~ 循环中，也可能会导致崩溃。
+
+所以，这两种在栈上分配可变大小的数据，是不安全的。
+
+*** Links
+1. [[https://gist.github.com/hellerbarde/2843375][Latency numbers every programmer should know，对比了 CPU、内存、I/O 设备、和网络的延迟]]
+** DONE 加餐｜ Rust 真的值得我们花时间学习么？
+CLOSED: [2021-12-21 Tue 22:48]
+:LOGBOOK:
+- State "DONE"       from "TODO"       [2021-12-21 Tue 22:48]
+- State "TODO"       from              [2021-12-21 Tue 22:48]
+:END:
+
+[[https://cdn.jsdelivr.net/gh/lroolle/p/s/20211221T154023-35e3-tyr-code-defect.png]]
+
+*** 代码缺陷
+从软件开发的角度来看， 一个软件系统想要提供具有良好用户体验的功能，最基本的要求
+就是 *控制缺陷* 。为了控制缺陷，在软件工程中，我们定义了各种各样的流程，从代码的
+格式，到 linting，到 code review，再到单元测试、集成测试、手工测试。
+
+*** 语法缺陷
+对 Rust 来说，它提供了 Rust Language Server / Rust Analyzer 第一时间报告语法错误，
+如果你用第三方 IDE 如 VSCode，会有这些工具的集成。
+
+*** 类型安全缺陷
+*** 内存和资源安全缺陷
+Rust 可以说基本上解决了主要的内存和资源的安全问题，通过所有权、借用检查和生命周
+期检查，来保证内存和资源一旦被分配，在其生命周期结束时，会被释放掉。
+
+*** 并发安全缺陷
+Rust 通过所有权规则和类型系统，主要是两个 ~trait: Send/Sync~ 来解决这个问题。很
+多高级语言会把线程概念屏蔽掉，只允许开发者使用语言提供的运行时来保证并发安全，比
+如 Golang 要使用 channel 和 Goroutine 、Erlang 只能用 Erlang process，只要你在它
+这个框架下，并发处理就是安全的。
+
+这样可以处理绝大多数并发场景，但遇到某些情况就容易导致效率不高，甚至阻塞其它并发
+任务。比如当有一个长时间运行的 CPU 密集型任务，使用单独的线程来处理要好得多。
+
+处理并发有很多手段，但是大部分语言为了并发安全，把不少手段都屏蔽了，开发者无法接
+触到，但是 Rust 都提供给你，同时还提供了很好的并发安全保障，让你可以在合适的场景，
+安全地使用合适的工具。
+
+*** 错误处理缺陷
+错误处理作为代码的一个分支，会占到代码量的 30% 甚至更多。在实际工程中，函数频繁
+嵌套的时候，整个过程会变得非常复杂，一旦处理不好就会引入缺陷。常见的问题是系统出
+错了，但抛出的错误并没有得到处理，导致程序在后续的运行中崩溃。
+
+很多语言并没有强制开发者一定要处理错误，Rust 使用 ~Result<T, E>~ 类型来保证错误
+的类型安全，还强制你必须处理这个类型返回的值，避免开发者丢弃错误。
+
+*** 代码风格和常见错误引发的缺陷
+很多语言都会提供代码格式化工具和 linter 来消灭这类缺陷。Rust 有内置的 cargo fmt
+和 cargo clippy 来帮助开发者统一代码风格，来避免常见的开发错误。再往下的三类缺陷
+是语言和编译器无法帮助解决的。
+
+- 对于逻辑缺陷，我们需要有不错的单元测试覆盖率；
+- 对于功能缺陷，需要通过足够好的集成测试，把用户主要使用的功能测试一遍；
+- 对于用户体验缺陷，需要端到端的测试，甚至手工测试，才能发现。
+
+Rust 帮我们把尽可能多的 *缺陷扼杀在摇篮中* 。Rust 在编译时解决掉的很多缺陷，如资源释
+放安全、并发安全和错误处理方面的缺陷，在其他大多数语言中并没有完整的解决方案。所
+以 Rust 这门语言，让开发者的时间和精力都尽可能的放在对逻辑、功能、用户体验缺陷的
+优化上。
+
+*** 引入缺陷的代价
+
+[[https://cdn.jsdelivr.net/gh/lroolle/p/s/20211221T155610-3e6b-tyr-defect-cost.png]]
+*** 语言发展前景判断
+有很多同学比较关心 Rust 的发展前景，留言问 Rust 和其他语言的对比，经常会聊现在或
+者未来什么语言会被 Rust 替代、Rust 会不会一统前后端天下等等。我觉得不会。
+
+*每种语言都有它们各自的优劣和适用场景* ，谈不上谁一定取代谁。社区的形成、兴盛和
+衰亡是一个长久的过程，就像 “世界上最好的语言 PHP” 也还在顽强地生长着。
+
+**** Rust 和 Golang
+ 很多同学关心 Rust 和 Golang 的对比，其实网上有很多详尽的分析，[[https://trio.dev/blog/golang-vs-rust][这一篇]] 比较不错可
+ 以看看。我这里也简单说一下。
+
+ - Rust 和 Golang 重叠的领域主要在服务开发领域
+   #+begin_quote
+   Golang 的优点是简单、上手快，语言已经给你安排好了并发模型，直接用即可。对于
+   日程紧迫、 有很多服务要写，且不在乎极致性能的开发团队，Golang 是不错的选择。
+   Golang 因为设计之初要考虑如何能适应新时代的并发需求，所以使用了运行时、使用调
+   度器调度 Goroutine ，在 Golang 中内存是不需要开发者手动释放的，所以运行时中还
+   有 GC 来帮 助开发者管理内存。
+   #+end_quote
+ - 另外，为了语法简便，在语言诞生之初便不支持泛型
+   #+begin_quote
+   这也是目前 Golang 最被诟病的一点，因为一旦系统复杂到一定程度，你的每个类型都需
+   要做一遍实现。Golang 可能会在 2022 年的 1.18 版本添加对泛型的支持，但泛型对
+   Golang 来说是一把达摩克利斯之剑，它带来很多好处，但同时会大大破坏 Golang 的简
+   洁和极速的编译体验，到时候可能会带给开发者这样一种困惑：既然 Golang 已经变得
+   不简单，不那么容易上手，我为何不学 Rust 呢？Rust 的很多设计思路和 Golang 相反。
+   #+end_quote
+ - Rust 的很多设计思路和 Golang 相反。
+   #+begin_quote
+   Go 相对小巧，类型系统很简单；而 Rust 借鉴了 Haskell，有完整的类型系统，支持泛
+   型。为了性能的考虑，Rust 在处理泛型函数的时候会做单态化（[[https://en.wikipedia.org/wiki/Monomorphization][Monomorphization]]），
+   泛型函数里每个用到的类型会编译出一份代码，这也是为什么在编译的时候 Rust 编译
+   速度如此缓慢。Rust 面向系统级的开发，Go 虽然想做新时代的 C，但是它并不适合面
+   向系统级开发，使用场景更多是应用程序、服务等的开发，因为它的庞大的运行时，决
+   定了它不适合做直接和机器打交道的底层开发。Rust 的诞生目标就是取代 C/C++，想要
+   做出更好的系统层面的开发工具，所以在语言设计之初就要求不能有运行时。所以你看
+   到的类似 Golang 运行时的库比如 Tokio，都是第三方库，不在语言核心中，这样可以
+   把是否需要引入运行时的自由度给到开发者。
+   #+end_quote
+ - ~Go for the code that has to ship tomorrow, Rust for the code that has to keep running for the next five years.~
+*** 学习资料
+**** 官方
+1. [[https://doc.rust-lang.org/book/][The Rust Programming Language - The Rust Programming Language]]
+2. [[https://doc.rust-lang.org/nomicon/][Introduction - The Rustonomicon]]
+3. [[https://docs.rs/][Docs.rs]]
+4. [[https://doc.rust-lang.org/stable/std/][std - Rust]]
+5. [[https://github.com/rust-lang/rustlings][rust-lang/rustlings: Small exercises to get you used to reading and writing R...]]
+
+**** 其他
+1. [[https://book.douban.com/subject/30418895/][Rust编程之道 (豆瓣)]]
+2. [[https://www.oreilly.com/library/view/programming-rust-2nd/9781492052586/][Programming Rust, 2nd Edition {Book}]]
+3. [[https://github.com/rust-lang/this-week-in-rust][rust-lang/this-week-in-rust: Data for this-week-in-rust.org - GitHub]]
+4. [[https://github.com/RustMagazine/rust_magazine_2021][RustMagazine/rust_magazine_2021: RustMagazine 2021 期刊 - GitHub]]
+5. [[https://www.youtube.com/playlist?list=PLlrxD0HtieHjbTjrchBwOVks_sr8EVW1x][Rust for Beginners - YouTube]]
+6. [[https://www.youtube.com/channel/UC_iD0xppBwwsrM9DegC5cQQ][Jon Gjengset - YouTube]]
+7. [[https://www.bilibili.com/video/BV19b4y1o7Lt?spm_id_from=333.999.0.0][程序君的 Rust 培训（1）_哔哩哔哩_bilibili]]
+8. [[https://www.bilibili.com/video/BV1h64y197G3?spm_id_from=333.999.0.0][程序君的 Rust 培训（2）_哔哩哔哩_bilibili]]
+
+*** Links
+1. [[http://www.modulecounts.com/][Modulecounts]]
+2. [[https://trio.dev/blog/golang-vs-rust][Golang vs. Rust: Which One To Choose in 2022? | Trio Developers]]
+3.
+* 基础篇 (21 讲)
+** DONE 03｜初窥门径：从你的第一个 Rust 程序开始！ [[file:rusteqe/][rusteqe]]
+CLOSED: [2021-12-22 Wed 22:16]
+:LOGBOOK:
+- State "DONE"       from "TODO"       [2021-12-22 Wed 22:16]
+- State "TODO"       from              [2021-12-21 Tue 22:48]
+:END:
+*** rustup/cargo
+略 => [[id:20211222T221544.362957][Links]]
+*** vscode 插件
+1. rust-analyzer：它会实时编译和分析你的 Rust 代码，提示代码中的错误，并对类型进行标注。 你也可以使用官方的 rust 插件取代。
+2. rust syntax：为代码提供语法高亮。
+3. crates：帮助你分析当前项目的依赖是否是最新的版本。
+4. better toml：Rust 使用 toml 做项目的配置管理。
+5. better toml 可以帮你语法高亮，并展示 toml 文件中的错误。
+6. rust test lens：可以帮你快速运行某个 Rust 测试。
+7. Tabnine：基于 AI 的自动补全，可以帮助你更快地撰写代码。
+*** Hello World
+#+BEGIN_SRC rust :exports both
+fn main() {
+    println!("Hello Rust World!");
+}
+#+END_SRC
+
+#+RESULTS:
+: Hello Rust World!
+
+*** fn
+**** 函数是一等公民
+#+BEGIN_SRC rust :exports both
+fn apply(value: i32, f: fn(i32) -> i32) -> i32 {
+    f(value)
+}
+
+fn square(value: i32) -> i32 {
+    value * value
+}
+
+fn cube(value: i32) -> i32 {
+    value * value * value
+}
+
+fn main() {
+    println!("apply square: {}", apply(42, square));
+    println!("apply cube: {}", apply(43, cube));
+}
+#+END_SRC
+
+#+RESULTS:
+: apply square: 1764
+: apply cube: 79507
+**** 返回值
+
+#+BEGIN_SRC rust :exports both
+fn pi() -> f64 {
+    3.1415926
+}
+
+fn not_pi() {
+    3.1415926;
+}
+
+fn main() {
+    let is_pi = pi();
+    let is_unit1 = not_pi();
+    let is_unit2 = {
+        pi();
+    };
+    let not_is_unit1 = {
+        pi()
+    };
+
+    println!(
+        "is_pi: {:?}, is_unit1: {:?}, is_unit2: {:?}, not_is_unit1: {:?}",
+        is_pi, is_unit1, is_unit2, not_is_unit1
+    );
+}
+#+END_SRC
+
+#+RESULTS:
+: is_pi: 3.1415926, is_unit1: (), is_unit2: (), not_is_unit1: 3.1415926
+*** struct & enum & tuple
+#+BEGIN_SRC rust :exports both
+#[derive(Debug)]
+enum Gender {
+    Unspecified = 0,
+    Female = 1,
+    Male = 2,
+}
+
+#[derive(Debug, Copy, Clone)]
+struct UserId(u64);
+
+#[derive(Debug, Copy, Clone)]
+struct TopicId(u64);
+
+#[derive(Debug)]
+struct User {
+    id: UserId,
+    name: String,
+    gender: Gender,
+}
+
+#[derive(Debug)]
+struct Topic {
+    id: TopicId,
+    name: String,
+    owner: UserId,
+}
+
+// 定义聊天室中可能发生的事件
+#[derive(Debug)]
+enum Event {
+    Join((UserId, TopicId)),
+    Leave((UserId, TopicId)),
+    Message((UserId, TopicId, String)),
+}
+
+fn main() {
+    let alice = User {
+        id: UserId(1),
+        name: "Alice".into(),
+        gender: Gender::Female,
+    };
+    let bob = User {
+        id: UserId(2),
+        name: "Bob".into(),
+        gender: Gender::Male,
+    };
+    let ted = User {
+        id: UserId(23),
+        name: "Ted".into(),
+        gender: Gender::Unspecified,
+    };
+
+    let topic = Topic {
+        id: TopicId(1),
+        name: "rust".into(),
+        owner: UserId(1),
+    };
+    let event1 = Event::Join((alice.id, topic.id));
+    let event2 = Event::Join((bob.id, topic.id));
+    let event3 = Event::Message((alice.id, topic.id, "Hello world!".into()));
+    let event4 = Event::Message((ted.id, topic.id, "Hello rust world!".into()));
+    Event::Leave((alice.id, topic.id));
+
+    println!(
+        "event1: {:?}, event2: {:?}, event3: {:?}, event4: {:?}",
+        event1, event2, event3, event4
+    );
+}
+#+END_SRC
+
+#+RESULTS:
+: event1: Join((UserId(1), TopicId(1))), event2: Join((UserId(2), TopicId(1))), event3: Message((UserId(1), TopicId(1), "Hello world!")), event4: Message((UserId(23), TopicId(1), "Hello rust world!"))
+
+简单解释一下：
+1. Gender：一个枚举类型，在 Rust 下，使用 enum 可以定义类似 C 的枚举类型
+2. UserId/TopicId ：struct 的特殊形式，称为元组结构体。它的域都是匿名的，可以用索引访问，适用于简单的结构体。
+3. User/Topic：标准的结构体，可以把任何类型组合在结构体里使用。
+4. Event：标准的标签联合体，它定义了三种事件：Join、Leave、Message。每种事件都有自己的数据结构。
+5. 派生宏（derive macro），可以大大简化一些标准接口的定义，比如 #[derive(Debug)] 为数据结构实现了 Debug trait，提供了 debug 能力，这样可以通过 {:?}，用 println! 打印出来。
+6. Copy/Clone: Clone 让数据结构可以被复制，而 Copy 则让数据结构可以在参数传递的时候自动按字节拷贝。
+*** var/fn/struct summary
+
+|            | Example                                                                               |
+|------------+---------------------------------------------------------------------------------------|
+| Variables  | let name = "Tyr";  // 编译器支持类型推导                                              |
+|            | let pi = 3.141592653589793;                                                           |
+|            | let mut v: Vec<u8> = Vec::new();                                                      |
+|            |                                                                                       |
+| Constants  | const PI: f64 = 3.141592653589793; // 可全局访问，不可修改                            |
+|            |                                                                                       |
+| Static Var | static V: Vec<u8> = Vec::new();                                                       |
+|            | static MAP: HashMap<String, String> = HashMap::new(); // error, 需要使用 lazy_static  |
+|            |                                                                                       |
+| Function   | fn valid_email(input: &Ste) -> {... }...;                                             |
+|            |                                                                                       |
+| Struct     | 1. 空结构体(不占内存空间): struct Marker;                                             |
+|            | 2. 元组结构体: struct Color(u8, u8, u8);                                              |
+|            | 3. 正常结构体: struct {... }...;                                                      |
+|            |                                                                                       |
+| Enum       | 1. 标签联合(enum 可以承载多个不同数据结构中的一种): enum Option<T> { Some(T), None, } |
+|            | 2. 枚举: enum Status { Ok = 0, Code = 403... }                                        |
+*** if/else/loop
+
+Rust 支持分支跳转、模式匹配、错误跳转和异步跳转。
+
+- 分支跳转就是我们熟悉的 if/else；
+- Rust 的模式匹配可以通过匹配表达式或者值的某部分的内容，来进行分支跳转；
+- 在错误跳转中，当调用的函数返回错误时，Rust 会提前终止当前函数的执行，向上一层返回错误；
+- 在 Rust 的异步跳转中 ，当 async 函数执行 await 时，程序当前上下文可能被阻塞，执行流程会跳转到另一个异步任务执行，直至 await 不再阻塞。
+- Rust 的 for 循环可以用于任何实现了 IntoIterator trait 的数据结构。
+- 需要注意的是 while 和 loop 的区别
+  > [[https://stackoverflow.com/questions/28892351/what-is-the-difference-between-loop-and-while-true][rust - What is the difference between loop and while true? - Stack Overflow]]
+
+#+BEGIN_SRC rust :exports both
+fn fib_loop(n: u8) {
+    let mut a = 1;
+    let mut b = 1;
+    let mut i = 2u8;
+
+    loop {
+        let c = a + b;
+        a = b;
+        b = c;
+        i += 1;
+
+        println!("next val is {}", b);
+
+        if i >= n {
+            break;
+        }
+    }
+}
+
+fn fib_while(n: u8) {
+    let (mut a, mut b, mut i) = (1, 1, 2);
+
+    while i < n {
+        let c = a + b;
+        a = b;
+        b = c;
+        i += 1;
+
+        println!("next val is {}", b);
+    }
+}
+
+fn fib_for(n: u8) {
+    let (mut a, mut b) = (1, 1);
+
+    for _i in 2..n {  // 2 <= _i < n
+        let c = a + b;
+        a = b;
+        b = c;
+        println!("next val is {}", b);
+    }
+}
+
+fn main() {
+    let n = 9;
+    println!("fib loop:");
+    fib_loop(n);
+    println!("fib while:");
+    fib_while(n);
+    println!("fib for:");
+    fib_for(n);
+}
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+fib loop:
+next val is 2
+next val is 3
+next val is 5
+next val is 8
+next val is 13
+next val is 21
+next val is 34
+fib while:
+next val is 2
+next val is 3
+next val is 5
+next val is 8
+next val is 13
+next val is 21
+next val is 34
+fib for:
+next val is 2
+next val is 3
+next val is 5
+next val is 8
+next val is 13
+next val is 21
+next val is 34
+#+end_example
+
+[[https://cdn.jsdelivr.net/gh/lroolle/p/s/20211222T214205-0778-tyr-03-loop.png]]
+
+*** range/slice?
+
+#+BEGIN_SRC rust :exports both
+let arr = [1, 2, 3];
+assert_eq!(arr[..], [1, 2, 3]);
+assert_eq!(arr[0..=1], [1, 2]);
+#+END_SRC
+
+#+results:
+
+*** match
+模式匹配 Rust 的模式匹配吸取了函数式编程语言的优点，强大优雅且效率很高。它可以用于 struct / enum 中匹配部分或者全部内容，比如上文中我们设计的数据结构 Event，可以这样匹配（代码）：
+#+BEGIN_SRC rust :exports both
+#[derive(Debug)]
+enum Gender {
+    Unspecified = 0,
+    Female = 1,
+    Male = 2,
+}
+
+#[derive(Debug, Copy, Clone)]
+struct UserId(u64);
+
+#[derive(Debug, Copy, Clone)]
+struct TopicId(u64);
+
+#[derive(Debug)]
+struct User {
+    id: UserId,
+    name: String,
+    gender: Gender,
+}
+
+#[derive(Debug)]
+struct Topic {
+    id: TopicId,
+    name: String,
+    owner: UserId,
+}
+
+// 定义聊天室中可能发生的事件
+#[derive(Debug)]
+enum Event {
+    Join((UserId, TopicId)),
+    Leave((UserId, TopicId)),
+    Message((UserId, TopicId, String)),
+}
+
+fn main() {
+    let alice = User {
+        id: UserId(1),
+        name: "Alice".into(),
+        gender: Gender::Female,
+    };
+    let bob = User {
+        id: UserId(2),
+        name: "Bob".into(),
+        gender: Gender::Male,
+    };
+    let ted = User {
+        id: UserId(23),
+        name: "Ted".into(),
+        gender: Gender::Unspecified,
+    };
+
+    let topic = Topic {
+        id: TopicId(1),
+        name: "rust".into(),
+        owner: UserId(1),
+    };
+    let event1 = Event::Join((alice.id, topic.id));
+    process_event(&event1);
+    let event2 = Event::Join((bob.id, topic.id));
+    process_event(&event2);
+    let event3 = Event::Message((alice.id, topic.id, "Hello world!".into()));
+    process_event(&event3);
+    let event4 = Event::Message((ted.id, topic.id, "Hello rust world!".into()));
+    Event::Leave((alice.id, topic.id));
+    process_event(&event4);
+}
+
+fn process_event(event: &Event) {
+    match event {
+        Event::Join((uid, _tid)) => println!("process user {:?} joined", uid),
+        Event::Leave((uid, tid)) => println!("process user {:?} left {:?}", uid, tid),
+        Event::Message((_, _, msg)) => println!("process broadcast: {}", msg),
+    }
+}
+#+END_SRC
+
+#+RESULTS:
+: process user UserId(1) joined
+: process user UserId(2) joined
+: process broadcast: Hello world!
+: process broadcast: Hello rust world!
+
+#+BEGIN_SRC rust :exports both
+// if/while let 简单匹配
+fn process_message(event: &Event) {
+    if let Event::Message((_, _, msg)) = event {
+        println!("broadcast: {}", msg);
+    }
+}
+#+END_SRC
+*** 错误处理
+
+错误处理 Rust 没有沿用 C++/Java 等诸多前辈使用的异常处理方式，而是借鉴 Haskell，把错误封装在 Result 类型中，同时提供了 ? 操作符来传播错误，方便开发。
+Result 类型是一个泛型数据结构，T 代表成功执行返回的结果类型，E 代表错误类型。
+
+#+BEGIN_SRC rust :exports both :crates '((html2md . "0.2") (reqwest . "0.11")) :features '((reqwest . "blocking"))
+use std::fs;
+// main 函数现在返回一个 Result
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let url = "https://www.rust-lang.org/";
+    let output = "rust.md";
+
+    println!("Fetching url: {}", url);
+    let body = reqwest::blocking::get(url)?.text()?;
+
+    println!("Converting html to markdown...");
+    let md = html2md::parse_html(&body);
+
+    fs::write(output, md.as_bytes())?;
+    println!("Converted markdown has been saved in {}.", output);
+
+    Ok(())
+}
+#+END_SRC
+
+#+RESULTS:
+: Fetching url: https://www.rust-lang.org/
+: Converting html to markdown...
+: Converted markdown has been saved in rust.md.
+*** Rust 项目组织
+
+#+BEGIN_EXAMPLE
+abi_lib/
+├── Cargo.toml
+├── benches
+│   └── bench_abi.rs
+├── src
+│   ├── abi
+│   │   ├── mod.rs   -> mod pb;
+│   │   └── pb.rs
+│   ├── config.rs
+│   ├── error.rs
+│   ├── lib.rs       -> mod abi;
+│   ├── main.rs
+│   └── state.rs
+└── tests
+    └── integration.rs
+
+4 directories, 10 files
+#+END_EXAMPLE
+
+**** tests
+#+BEGIN_SRC rust :exports both
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn it_works() {
+        assert_eq!(2 + 2, 4);
+    }
+}
+#+END_SRC
+
+**** workspaces
+多个 crates，仅涉及改动 crate 才需要重新编译
+
+#+BEGIN_SRC toml :exports both
+[workspace]
+members = [
+    "core",
+    "network",
+    "server",
+    "client",
+]
+#+END_SRC
+*** Summary
+[[https://cdn.jsdelivr.net/gh/lroolle/p/s/20211222T212740-3b48-tyr-03-summary.png]]
+
+*** Q: 1. 在上面的斐波那契数列的代码中，你也许注意到计算数列中下一个数的代码在三个函数中不断重复。这不符合 DRY（Don’t Repeat Yourself）原则。你可以写一个函数把它抽取出来么？
+**** fib(Wrong Answer)x
+#+begin_src rust :wrap results rust :exports both
+fn fib(a: i32, b: i32) -> i32 {
+    a + b
+}
+#+end_src
+
+**** Answer
+#+begin_src rust :wrap results rust :exports both
+fn calc(a: &mut u64, b: &mut u64) {
+    let c = *a + *b;
+    *a = *b;
+    *b = c;
+}
+#+end_src
+
+*** Q: 2. 在 scrape_url 的例子里，我们在代码中写死了要获取的 URL 和要输出的文件名，这太不灵活了。你能改进这个代码，从命令行参数中获取用户提供的信息来绑定 URL 和文件名么？类似这样：
+#+begin_src rust :wrap results rust :exports both
+cargo run -- https://www.rust-lang.org rust.md
+#+end_src
+
+提示一下，打印一下 std::env::args() 看看会发生什么？
+
+#+begin_src rust :wrap results rust :exports both
+for arg in std::env::args() {
+    println!("arg: {:#?}", arg);
+}
+#+end_src
+
+#+results:
+#+begin_results rust
+arg: "target/debug/cargoqIJplt"
+#+end_results
+*** Links
+:PROPERTIES:
+:ID:       20211222T221544.362957
+:END:
+1. [[https://doc.rust-lang.org/std/primitive.unit.html][unit - Rust]]
+2. [[https://doc.rust-lang.org/std/keyword.static.html][static - Rust]]
+3. [[https://doc.rust-lang.org/book/ch11-01-writing-tests.html][How to Write Tests - The Rust Programming Language]]
+4. [[https://doc.rust-lang.org/book/ch14-00-more-about-cargo.html][More about Cargo and Crates.io - The Rust Programming Language]]
+5. [[https://github.com/rust-lang-nursery/lazy-static.rs][rust-lang-nursery/lazy-static.rs: A small macro for defining lazy evaluated s...]]
+6. [[https://toml.io/cn/v1.0.0][TOML: 简体中文 v1.0.0]]
+7. [[https://github.com/seanmonstar/reqwest][seanmonstar/reqwest: An easy and powerful Rust HTTP Client - GitHub]]
+
+** DONE 04｜get hands dirty：来写个实用的 CLI 小工具 [[file:httpie/][httpie]]
+CLOSED: [2021-12-23 Thu 21:57]
+:LOGBOOK:
+- State "DONE"       from "TODO"       [2021-12-23 Thu 21:57]
+- State "TODO"       from              [2021-12-21 Tue 22:58]
+:END:
+*** 本章节动手实现 [[https://httpie.io/][httpie]]
+#+begin_quote
+HTTPie 是用 Python 开发的，一个类似 cURL 但对用户更加友善的命令行工具，它可以帮
+助我们更好地诊断 HTTP 服务。
+#+end_quote
+*** 功能分析
+要做一个 HTTPie 这样的工具，我们先梳理一下要实现哪些主要功能：
+- 首先是做命令行解析，处理子命令和各种参数，验证用户的输入，并且将这些输入转换成
+  我们内部能理解的参数[[https://click.palletsprojects.com/en/8.0.x/][Welcome to Click — Click Documentation (8.0.x)]]；
+- 之后根据解析好的参数，发送一个 HTTP 请求，获得响应；
+- 最后用对用户友好的方式输出响应。
+*** 需要用到的库
+1. clap: 命令行解析；
+2. reqwest: 对于 HTTP 客户端
+3. colored
+4. anyhow
+5. jsonxf
+6. mime
+7. tokio: 做异步处理。
+*** CLI 处理
+#+begin_src rust :wrap results rust :exports both
+/// A naive httpie implementation with Rust, can you imagine how easy it is?
+#[derive(Parser, Debug)]
+#[clap(version = "1.0", author = "Tyr Chen <tyr@chen.com>")]
+struct Opts {
+    #[clap(subcommand)]
+    subcmd: SubCommand,
+}
+
+#[derive(Parser, Debug)]
+enum SubCommand {
+    Get(Get),
+    Post(Post),
+}
+
+// get 子命令
+/// feed get with an url and we will retrieve the response for you
+#[derive(Parser, Debug)]
+struct Get {
+    #[clap(parse(try_from_str = parse_url))]
+    url: String,
+}
+
+// post 子命令。需要输入一个 url，和若干个可选的 key=value，用于提供 json body
+
+/// feed post with an url and optional key=value pairs. We will post the data
+/// as JSON, and retrieve the response for you
+#[derive(Parser, Debug)]
+struct Post {
+    #[clap(parse(try_from_str = parse_url))]
+    url: String,
+    #[clap(parse(try_from_str=parse_kv_pair))]
+    body: Vec<KvPair>,
+}
+
+#[derive(Debug, PartialEq)]
+struct KvPair {
+    k: String,
+    v: String,
+}
+#+end_src
+
+*** 加入验证
+#+begin_src rust :wrap results rust :exports both
+fn parse_url(s: &str) -> Result<String> {
+    // 这里我们仅仅检查一下 URL 是否合法
+    let _url: Url = s.parse()?;
+
+    Ok(s.into())
+}
+#+end_src
+
+*** Summary
+Rust 拥有强大的表现力。
+
+实现代码见 => [[file:httpie][file:./httpie]]
+
+*** Q: 我们只是实现了 HTTP header 和 body 的高亮区分
+但是 HTTP body 还是有些不太美观，可以进一步做语法高亮，如果你完成了今天的代码，
+觉得自己学有余力可以再挑战一下，你不妨试一试用 [[https://github.com/trishume/syntect][syntect]] 继续完善我们的 HTTPie。
+syntect 是 Rust 的一个语法高亮库，非常强大。
+**** A:
+#+begin_src rust :wrap results rust :exports both
+use syntect::{
+    easy::HighlightLines,
+    highlighting::{Style, ThemeSet},
+    parsing::SyntaxSet,
+    util::{as_24_bit_terminal_escaped, LinesWithEndings},
+};
+
+fn print_syntect(s: &str, ext: &str) {
+    // Load these once at the start of your program
+    let ps = SyntaxSet::load_defaults_newlines();
+    let ts = ThemeSet::load_defaults();
+    let syntax = ps.find_syntax_by_extension(ext).unwrap();
+    let mut h = HighlightLines::new(syntax, &ts.themes["base16-ocean.dark"]);
+    for line in LinesWithEndings::from(s) {
+        let ranges: Vec<(Style, &str)> = h.highlight(line, &ps);
+        let escaped = as_24_bit_terminal_escaped(&ranges[..], true);
+        print!("{}", escaped);
+    }
+}
+#+end_src
+
+
+*** Links
+1. [[https://doc.rust-lang.org/std/str/trait.FromStr.html][FromStr in std::str - Rust]]
+2. [[https://en.wikipedia.org/wiki/Open%E2%80%93closed_principle][Open–closed principle - Wikipedia]]
+3. [[https://github.com/XAMPPRocky/tokei][XAMPPRocky/tokei: Count your code, quickly. - GitHub]]
+4. [[https://github.com/spf13/cobra][spf13/cobra: A Commander for modern Go CLI interactions - GitHub]]
+
+** TODO 05｜get hands dirty：做一个图片服务器有多难？
+:PROPERTIES:
+:ID:       20211225T155959.518199
+:END:
+:LOGBOOK:
+- State "TODO"       from              [2021-12-21 Tue 22:58]
+:END:
+*** [[https://github.com/thumbor/thumbor][thumbor/thumbor: thumbor is an open-source photo thumbnail service by globo.c...]]
+#+begin_quote
+Thumbor 是 Python 下的一个非常著名的图片服务器，被广泛应用在各种需要动态调整图片
+尺寸的场合里。它可以通过一个很简单的 HTTP 接口，实现图片的动态剪切和大小调整，另
+外还支持文件存储、替换处理引擎等其他辅助功能。我在之前的创业项目中还用过它，非常
+实用，性能也还不错。
+#+end_quote
+*** 设计分析
+调整大小、剪切、加水印，甚至包括图片的滤镜， *图片转换服务的难点其实在接口设计上* ，
+如何设计一套易用、简洁的接口，让图片服务器未来可以很轻松地扩展。
+
+#+begin_src rust :wrap results rust :exports both
+struct ImageSpec {
+    specs: Vec<Spec>,
+}
+
+enum Spec {
+    Resize(Resize),
+    Crop(Crop),
+}
+
+struct Resize {
+    width: u32,
+    height: u32,
+}
+#+end_src
+
+那我们如何设计一个任何客户端可以使用的、体现在 URL 上的接口，使其能够解析成我们
+设计的数据结构呢？
+
+使用 querystring 么？虽然可行，但它在图片处理步骤比较复杂的时候，容易无序增长，
+比如我们要对某个图片做七八次转换，这个 querystring 就会非常长。我这里的思路是使
+用 protobuf。protobuf 可以描述数据结构，几乎所有语言都有对 protobuf 的支持。当用
+protobuf 生成一个 image spec 后，我们可以将其序列化成字节流。但字节流无法放在
+URL 中，怎么办？我们可以用 base64 转码！
+
+#+begin_src proto
+message ImageSpec { repeated Spec specs = 1; }
+
+message Spec {
+  oneof data {
+    Resize resize = 1;
+    Crop crop = 2;
+  }
+}
+#+end_src
+
+#+begin_example
+http://localhost:3000/image/CgoKCAjYBBCgBiADCgY6BAgUEBQKBDICCAM/<encoded origin url>
+#+end_example
+
+*** protobuf 的定义和编译
+
+#+begin_src proto3
+syntax = "proto3";
+
+package abi; // 这个名字会被用作编译结果，prost 会产生：abi.rs
+
+// 一个 ImageSpec 是一个有序的数组，服务器按照 spec 的顺序处理
+message ImageSpec { repeated Spec specs = 1; }
+
+// 处理图片改变大小
+message Resize {
+  uint32 width = 1;
+  uint32 height = 2;
+
+  enum ResizeType {
+    NORMAL = 0;
+    SEAM_CARVE = 1;
+  }
+
+  ResizeType rtype = 3;
+
+  enum SampleFilter {
+    UNDEFINED = 0;
+    NEAREST = 1;
+    TRIANGLE = 2;
+    CATMULL_ROM = 3;
+    GAUSSIAN = 4;
+    LANCZOS3 = 5;
+  }
+
+  SampleFilter filter = 4;
+}
+
+// 处理图片截取
+message Crop {
+  uint32 x1 = 1;
+  uint32 y1 = 2;
+  uint32 x2 = 3;
+  uint32 y2 = 4;
+}
+
+// 处理水平翻转
+message Fliph {}
+// 处理垂直翻转
+message Flipv {}
+// 处理对比度
+message Contrast { float contrast = 1; }
+// 处理滤镜
+message Filter {
+  enum Filter {
+    UNSPECIFIED = 0;
+    OCEANIC = 1;
+    ISLANDS = 2;
+    MARINE = 3;
+    // more: https://docs.rs/photon-rs/0.3.1/photon_rs/filters/fn.filter.html
+  }
+  Filter filter = 1;
+}
+
+// 处理水印
+message Watermark {
+  uint32 x = 1;
+  uint32 y = 2;
+}
+
+// 一个 spec 可以包含上述的处理方式之一
+message Spec {
+  oneof data {
+    Resize resize = 1;
+    Crop crop = 2;
+    Flipv flipv = 3;
+    Fliph fliph = 4;
+    Contrast contrast = 5;
+    Filter filter = 6;
+    Watermark watermark = 7;
+  }
+}
+#+end_src
+
+*** 引入 HTTP 服务器
+#+begin_src rust :wrap results rust :exports both
+use axum::{extract::Path, handler::get, http::StatusCode, Router};
+use percent_encoding::percent_decode_str;
+use serde::Deserialize;
+use std::convert::TryInto;
+
+// 引入 protobuf 生成的代码，我们暂且不用太关心他们
+mod pb;
+
+use pb::*;
+
+// 参数使用 serde 做 Deserialize，axum 会自动识别并解析
+#[derive(Deserialize)]
+struct Params {
+    spec: String,
+    url: String,
+}
+
+#[tokio::main]
+async fn main() {
+    // 初始化 tracing
+    tracing_subscriber::fmt::init();
+
+    // 构建路由
+    let app = Router::new()
+        // `GET /image` 会执行 generate 函数，并把 spec 和 url 传递过去
+        .route("/image/:spec/:url", get(generate));
+
+    // 运行 web 服务器
+    let addr = "127.0.0.1:3000".parse().unwrap();
+    tracing::debug!("listening on {}", addr);
+    axum::Server::bind(&addr)
+        .serve(app.into_make_service())
+        .await
+        .unwrap();
+}
+
+// 目前我们就只把参数解析出来
+async fn generate(Path(Params { spec, url }): Path<Params>) -> Result<String, StatusCode> {
+    let url = percent_decode_str(&url).decode_utf8_lossy();
+    let spec: ImageSpec = spec
+        .as_str()
+        .try_into()
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
+    Ok(format!("url: {}\n spec: {:#?}", url, spec))
+}
+#+end_src
+
+然后我们就可以用上一讲做的 HTTPie 测试（eat your own dog food）：
+
+#+begin_src sh :exports both :results output replace
+httpie get "http://localhost:3000/image/CgoKCAjYBBCgBiADCgY6BAgUEBQKBDICCAM/https%3A%2F%2Fimages%2Epexels%2Ecom%2Fphotos%2F2470905%2Fpexels%2Dphoto%2D2470905%2Ejpeg%3Fauto%3Dcompress%26cs%3Dtinysrgb%26dpr%3D2%26h%3D750%26w%3D1260"
+#+end_src
+
+*** 获取源图并缓存
+#+begin_src rust :wrap results rust :exports both
+use anyhow::Result;
+use axum::{
+    extract::{Extension, Path},
+    handler::get,
+    http::{HeaderMap, HeaderValue, StatusCode},
+    AddExtensionLayer, Router,
+};
+use bytes::Bytes;
+use lru::LruCache;
+use percent_encoding::{percent_decode_str, percent_encode, NON_ALPHANUMERIC};
+use serde::Deserialize;
+use std::{
+    collections::hash_map::DefaultHasher,
+    convert::TryInto,
+    hash::{Hash, Hasher},
+    sync::Arc,
+};
+use tokio::sync::Mutex;
+use tower::ServiceBuilder;
+use tracing::{info, instrument};
+
+mod pb;
+
+use pb::*;
+
+#[derive(Deserialize)]
+struct Params {
+    spec: String,
+    url: String,
+}
+type Cache = Arc<Mutex<LruCache<u64, Bytes>>>;
+
+#[tokio::main]
+async fn main() {
+    // 初始化 tracing
+    tracing_subscriber::fmt::init();
+    let cache: Cache = Arc::new(Mutex::new(LruCache::new(1024)));
+    // 构建路由
+    let app = Router::new()
+        // `GET /` 会执行
+        .route("/image/:spec/:url", get(generate))
+        .layer(
+            ServiceBuilder::new()
+                .layer(AddExtensionLayer::new(cache))
+                .into_inner(),
+        );
+
+    // 运行 web 服务器
+    let addr = "127.0.0.1:3000".parse().unwrap();
+
+    print_test_url("https://images.pexels.com/photos/1562477/pexels-photo-1562477.jpeg?auto=compress&cs=tinysrgb&dpr=3&h=750&w=1260");
+
+    info!("Listening on {}", addr);
+
+    axum::Server::bind(&addr)
+        .serve(app.into_make_service())
+        .await
+        .unwrap();
+}
+
+async fn generate(
+    Path(Params { spec, url }): Path<Params>,
+    Extension(cache): Extension<Cache>,
+) -> Result<(HeaderMap, Vec<u8>), StatusCode> {
+    let spec: ImageSpec = spec
+        .as_str()
+        .try_into()
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
+
+    let url: &str = &percent_decode_str(&url).decode_utf8_lossy();
+    let data = retrieve_image(&url, cache)
+        .await
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
+
+    // TODO: 处理图片
+
+    let mut headers = HeaderMap::new();
+
+    headers.insert("content-type", HeaderValue::from_static("image/jpeg"));
+    Ok((headers, data.to_vec()))
+}
+
+#[instrument(level = "info", skip(cache))]
+async fn retrieve_image(url: &str, cache: Cache) -> Result<Bytes> {
+    let mut hasher = DefaultHasher::new();
+    url.hash(&mut hasher);
+    let key = hasher.finish();
+
+    let g = &mut cache.lock().await;
+    let data = match g.get(&key) {
+        Some(v) => {
+            info!("Match cache {}", key);
+            v.to_owned()
+        }
+        None => {
+            info!("Retrieve url");
+            let resp = reqwest::get(url).await?;
+            let data = resp.bytes().await?;
+            g.put(key, data.clone());
+            data
+        }
+    };
+
+    Ok(data)
+}
+
+// 调试辅助函数
+fn print_test_url(url: &str) {
+    use std::borrow::Borrow;
+    let spec1 = Spec::new_resize(500, 800, resize::SampleFilter::CatmullRom);
+    let spec2 = Spec::new_watermark(20, 20);
+    let spec3 = Spec::new_filter(filter::Filter::Marine);
+    let image_spec = ImageSpec::new(vec![spec1, spec2, spec3]);
+    let s: String = image_spec.borrow().into();
+    let test_image = percent_encode(url.as_bytes(), NON_ALPHANUMERIC).to_string();
+    println!("test url: http://localhost:3000/image/{}/{}", s, test_image);
+}
+#+end_src
+*** 图片处理(抽象 Engine)
+#+begin_src rust :wrap results rust :exports both
+// Engine trait：未来可以添加更多的 engine，主流程只需要替换 engine
+pub trait Engine {
+    // 对 engine 按照 specs 进行一系列有序的处理
+    fn apply(&mut self, specs: &[Spec]);
+    // 从 engine 中生成目标图片，注意这里用的是 self，而非 self 的引用
+    fn generate(self, format: ImageOutputFormat) -> Vec<u8>;
+}
+
+// apply 方法对 engine 按照 specs 进行一系列有序的处理，generate 方法从 engine 中生成目标图片。
+#+end_src
+
+#+begin_src rust :wrap results rust :exports both
+use crate::pb::Spec;
+use image::ImageOutputFormat;
+
+mod photon;
+pub use photon::Photon;
+
+// Engine trait：未来可以添加更多的 engine，主流程只需要替换 engine
+pub trait Engine {
+    // 对 engine 按照 specs 进行一系列有序的处理
+    fn apply(&mut self, specs: &[Spec]);
+    // 从 engine 中生成目标图片，注意这里用的是 self，而非 self 的引用
+    fn generate(self, format: ImageOutputFormat) -> Vec<u8>;
+}
+
+// SpecTransform：未来如果添加更多的 spec，只需要实现它即可
+pub trait SpecTransform<T> {
+    // 对图片使用 op 做 transform
+    fn transform(&mut self, op: T);
+}
+#+end_src
+
+*** Summary
+通过合理使用 protobuf 定义接口和使用 trait 做图片引擎，未来添加新的功能非常简单，
+可以像搭积木一样垒上去，不会影响已有的功能，完全符合开闭原则（Open-Closed
+Principle）。
+
+我们通过 Engine trait 分离了具体的图片处理引擎和主流程，让主流程变得干净清爽；同
+时在处理 protobuf 生成的数据结构时，大量使用了 From/ TryFromtrait 做数据类型的转
+换，也是一种解耦（关注点分离）的思路。
+
+在前期学习 Rust 的时候编译很难通过，导致我们直观感觉它是一门难学的语言，但其实它
+又很容易上手。这听起来矛盾，但确实是我自己的感受：它之所以学起来有些费力，有点像
+讲拉丁语系的人学习中文一样， *要打破很多自己原有的认知，去拥抱新的思想和概念* 。但是
+只要多写多思考，时间长了，理解起来就是水到渠成的事。
+
+*** Q: 思考题
+之前提到通过合理使用 protobuf 定义接口和使用 trait 做图片引擎，未来添加新的功能
+非常简单。
+
+如果你学有余力，可以自己尝试一下。我们看如何添加新功能：首先添加新的 proto，定义
+新的 spec 然后为 spec 实现 SpecTransform trait 和一些辅助函数最后在 Engine 中使
+用 spec 如果要换图片引擎呢？也很简单：添加新的图片引擎，像 Photon 那样，实现
+Engine trait 以及为每种 spec 实现 SpecTransform Trait。在 main.rs 里使用新的引擎。
+
+*** Links
+1. https://github.com/actix/actix-web
+2. https://github.com/SergioBenitez/Rocket
+3. https://github.com/seanmonstar/warp
+4. https://github.com/tokio-rs/axum
+5. https://github.com/image-rs/image
+6. https://github.com/silvia-odwyer/photon
+7. https://silvia-odwyer.github.io/photon/
+8. https://www.pexels.com/@minan1398
+** TODO 06｜Get hands dirty：SQL 查询工具怎么一鱼多吃？
+:LOGBOOK:
+- State "TODO"       from              [2021-12-21 Tue 22:48]
+:END:
+*** SQL
+与数据打交道的过程无非是：
+- 数据的获取（fetch）
+- 过滤（filter）
+- 投影（projection）
+- 排序（sort）
+
+格林斯潘第十定律：[[https://zh.wikipedia.org/wiki/%E6%A0%BC%E6%9E%97%E6%96%AF%E6%BD%98%E7%AC%AC%E5%8D%81%E5%AE%9A%E5%BE%8B][格林斯潘第十定律 - 维基百科，自由的百科全书]]
+#+begin_quote
+任何 C 或 Fortran 程序复杂到一定程度之后，都会包含一个临时开发的、不合规范的、充
+满程序错误的、运行速度很慢的、只有一半功能的 Common Lisp 实现。
+#+end_quote
+
+#+begin_quote
+任何 API 接口复杂到一定程度后，都会包含一个临时开发的、不合规范的、充满程序错误
+的、运行速度很慢的、只有一半功能的 SQL 实现。
+#+end_quote
+
+*** 设计分析
+**** SQL 解析 -> sqlparser-rs
+**** DataFrame -> polars
+**** 如何把 sqlparser 解析出来的抽象语法树 AST（Abstract Syntax Tree），映射到 polars 的 DataFrame 的操作上
+“对 CSV 等源进行 SQL 查询” 核心要解决的问题变成了，如何把一个 AST（ SQL AST ）转换成另一个 AST（ DataFrame AST ）。
+[[https://cdn.jsdelivr.net/gh/lroolle/p/s/20211226T150308-0d9d-tyr-06-stmt-mappig.png]]
+**** 宏编程
+#+begin_quote
+宏编程并没有什么大不了的，抛开 quote/unquote，它主要的工作就是把一棵语法树转换成
+另一颗语法树，而这个转换的过程深入下去，不过就是数据结构到数据结构的转换而已。所
+以一句话总结：宏编程的主要流程就是实现若干 From 和 TryFrom，是不是很简单。
+#+end_quote
+*** 创建一个 SQL 方言
+*** Links
+1. https://github.com/serde-rs/serde
+2. https://en.wikipedia.org/wiki/Parser_combinator
+3. https://en.wikipedia.org/wiki/Parsing_expression_grammar
+4. https://github.com/Geal/nom
+5. https://github.com/pest-parser/pest
+6. https://github.com/sqlparser-rs/sqlparser-rs
+7. https://pandas.pydata.org/pandas-docs/stable/index.html
+8. https://github.com/pola-rs/polars
+9. https://en.wikipedia.org/wiki/Abstract_syntax_tree
+
+** TODO 07｜所有权：值的生杀大权到底在谁手上？
+:LOGBOOK:
+- State "TODO"       from              [2021-12-21 Tue 22:48]
+:END:
+*** 变量在函数调用时发生了什么
+#+begin_src rust :exports both :confluence collapse
+fn main() {
+    let data = vec![10, 42, 9, 8];
+    let v = 42;
+    if let Some(pos) = find_pos(data, v) {
+        println!("Found {} at {}", v, pos);
+    }
+}
+
+fn find_pos(data: Vec<u32>, v: u32) -> Option<usize> {
+    for (pos, item) in data.iter().enumerate() {
+        if *item == v {
+            return Some(pos);
+        }
+    }
+    None
+}
+#+end_src
+
+*动态数组因为大小在编译期无法确定，所以放在堆上，并且在栈上有一个包含了长度和容量的胖指针指向堆上的内存。*
+
+[[https://cdn.jsdelivr.net/gh/lroolle/p/s/20211121T155053-find_pos_stack_heap-533e.png]]
+
+*** 所有权和 Move 语义
+:PROPERTIES:
+:ID:       20211121T164018.339612
+:END:
+对此，Rust 给出了如下规则：
+1. 一个值只能被一个变量所拥有，这个变量被称为所有者（Each value in Rust has a variable that’s called its owner）。
+2. 一个值同一时刻只能有一个所有者（There can only be one owner at a time）
+也就是说不能有两个变量拥有相同的值。所以对应刚才说的变量赋值、参数传递、函数返回等行为，旧的所有者会把值的所有权转移给新的所有者，以便保证单一所有者的约束。
+3. 当所有者离开作用域，其拥有的值被丢弃（When the owner goes out of scope, the value will be dropped）
+内存得到释放。
+
+[[https://cdn.jsdelivr.net/gh/lroolle/p/s/20211121T160733-find_pos_stack_heap2-d033.png]]
+
+原先 main () 函数中的 data，被移动到 find_pos () 后，就失效了，编译器会保证 main () 函数随后的代码无法访问这个变量，这样，就确保了堆上的内存依旧只有唯一的引用。
+
+#+begin_src rust :exports both
+fn main() {
+    let data = vec![1, 2, 3, 4];
+    let data1 = data;
+    println!("sum of data1: {}", sum(data1));
+    println!("data1: {:?}", data1); // error1
+    println!("sum of data: {}", sum(data)); // error2
+}
+
+fn sum(data: Vec<u32>) -> u32 {
+    data.iter().fold(0, |acc, x| acc + x)
+}
+#+end_src
+
+#+begin_example
+error[E0382]: borrow of moved value: `data1`
+ --> src/main.rs:6:29
+  |
+4 |     let data1 = data;
+  |         ----- move occurs because `data1` has type `Vec<u32>`, which does not implement the `Copy` trait
+5 |     println!("sum of data1: {}", sum(data1));
+  |                                      ----- value moved here
+6 |     println!("data1: {:?}", data1); // error1
+  |                             ^^^^^ value borrowed here after move
+#+end_example
+#+begin_example
+error[E0382]: use of moved value: `data`
+ --> src/main.rs:7:37
+  |
+3 |     let data = vec![1, 2, 3, 4];
+  |         ---- move occurs because `data` has type `Vec<u32>`, which does not implement the `Copy` trait
+4 |     let data1 = data;
+  |                 ---- value moved here
+...
+7 |     println!("sum of data: {}", sum(data)); // error2
+  |                                     ^^^^ value used here after move
+#+end_example
+
+
+1. 如果你不希望值的所有权被转移，在 Move 语义外，Rust 提供了 Copy 语义。如果一个数据结构实现了 Copy trait，那么它就会使用 Copy 语义。这样，在你赋值或者传参时，值会自动按位拷贝（浅拷贝）。
+2. 如果你不希望值的所有权被转移，又无法使用 Copy 语义，那你可以 “借用” 数据，我们下一讲会详细讨论 “借用”。
+*** Copy
+
+符合 Copy 语义的类型，在你赋值或者传参时，值会自动按位拷贝。
+
+换句话说，当你要移动一个值，如果值的类型实现了 Copy trait，就会自动使用 Copy 语义进行拷贝，否则使用 Move 语义进行移动。
+
+**** ~is_copy~: Copy Trait Satisfied
+
+#+begin_src rust :exports both
+fn is_copy<T: Copy>() {}
+
+fn types_impl_copy_trait() {
+    is_copy::<bool>();
+    is_copy::<char>();
+
+    // all iXX and uXX, usize/isize, fXX implement Copy trait
+    is_copy::<i8>();
+    is_copy::<u64>();
+    is_copy::<i64>();
+    is_copy::<usize>();
+
+    // function (actually a pointer) is Copy
+    is_copy::<fn()>();
+
+    // raw pointer is Copy
+    is_copy::<*const String>();
+    is_copy::<*mut String>();
+
+    // immutable reference is Copy
+    is_copy::<&[Vec<u8>]>();
+    is_copy::<&String>();
+
+    // array/tuple with values which is Copy is Copy
+    is_copy::<[u8; 4]>();
+    is_copy::<(&str, &str)>();
+}
+
+fn types_not_impl_copy_trait() {
+    // unsized or dynamic sized type is not Copy
+    is_copy::<str>();
+    is_copy::<[u8]>(); // Array type of unspecified length, i.e., slice. Can't live on stack.
+    is_copy::<Vec<u8>>();
+    is_copy::<String>();
+
+    // mutable reference is not Copy
+    is_copy::<&mut String>();
+
+    // array / tuple with values that not Copy is not Copy
+    is_copy::<[Vec<u8>; 4]>();
+    is_copy::<(String, u32)>();
+}
+
+fn main() {
+    types_impl_copy_trait();
+    types_not_impl_copy_trait();
+}
+#+end_src
+
+#+begin_example
+error[E0277]: the trait bound `str: Copy` is not satisfied
+  --> src/main.rs:32:15
+   |
+32 |     is_copy::<str>();
+   |               ^^^ the trait `Copy` is not implemented for `str`
+   |
+note: required by a bound in `is_copy`
+  --> src/main.rs:2:15
+   |
+2  | fn is_copy<T: Copy>() {}
+   |               ^^^^ required by this bound in `is_copy`
+
+error[E0277]: the trait bound `[u8]: Copy` is not satisfied
+  --> src/main.rs:33:15
+   |
+33 |     is_copy::<[u8]>();
+   |               ^^^^ the trait `Copy` is not implemented for `[u8]`
+   |
+note: required by a bound in `is_copy`
+  --> src/main.rs:2:15
+   |
+2  | fn is_copy<T: Copy>() {}
+   |               ^^^^ required by this bound in `is_copy`
+
+error[E0277]: the trait bound `Vec<u8>: Copy` is not satisfied
+  --> src/main.rs:34:15
+   |
+34 |     is_copy::<Vec<u8>>();
+   |               ^^^^^^^ the trait `Copy` is not implemented for `Vec<u8>`
+   |
+note: required by a bound in `is_copy`
+  --> src/main.rs:2:15
+   |
+2  | fn is_copy<T: Copy>() {}
+   |               ^^^^ required by this bound in `is_copy`
+
+error[E0277]: the trait bound `String: Copy` is not satisfied
+  --> src/main.rs:35:15
+   |
+35 |     is_copy::<String>();
+   |               ^^^^^^ the trait `Copy` is not implemented for `String`
+   |
+note: required by a bound in `is_copy`
+  --> src/main.rs:2:15
+   |
+2  | fn is_copy<T: Copy>() {}
+   |               ^^^^ required by this bound in `is_copy`
+
+error[E0277]: the trait bound `&mut String: Copy` is not satisfied
+  --> src/main.rs:38:5
+   |
+38 |     is_copy::<&mut String>();
+   |     ^^^^^^^^^^^^^^^^^^^^^^ the trait `Copy` is not implemented for `&mut String`
+   |
+   = note: `Copy` is implemented for `&std::string::String`, but not for `&mut std::string::String`
+note: required by a bound in `is_copy`
+  --> src/main.rs:2:15
+   |
+2  | fn is_copy<T: Copy>() {}
+   |               ^^^^ required by this bound in `is_copy`
+
+error[E0277]: the trait bound `Vec<u8>: Copy` is not satisfied in `[Vec<u8>; 4]`
+  --> src/main.rs:41:5
+   |
+41 |     is_copy::<[Vec<u8>; 4]>();
+   |     ^^^^^^^^^^^^^^^^^^^^^^^ within `[Vec<u8>; 4]`, the trait `Copy` is not implemented for `Vec<u8>`
+   |
+   = note: required because it appears within the type `[Vec<u8>; 4]`
+note: required by a bound in `is_copy`
+  --> src/main.rs:2:15
+   |
+2  | fn is_copy<T: Copy>() {}
+   |               ^^^^ required by this bound in `is_copy`
+
+error[E0277]: the trait bound `String: Copy` is not satisfied in `(String, u32)`
+  --> src/main.rs:42:5
+   |
+42 |     is_copy::<(String, u32)>();
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^ within `(String, u32)`, the trait `Copy` is not implemented for `String`
+   |
+   = note: required because it appears within the type `(String, u32)`
+note: required by a bound in `is_copy`
+  --> src/main.rs:2:15
+   |
+2  | fn is_copy<T: Copy>() {}
+   |               ^^^^ required by this bound in `is_copy`
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `cargoU4qUpv` due to 7 previous errors
+#+end_example
+
+**** Summary of Copy Trait
+
+1. 原生类型，包括函数、不可变引用和裸指针实现了 Copy；
+2. 数组和元组，如果其内部的数据结构实现了 Copy，那么它们也实现了 Copy；
+3. 可变引用没有实现 Copy；
+4. 非固定大小的数据结构，没有实现 Copy。
+
+> [[https://doc.rust-lang.org/std/marker/trait.Copy.html][Copy in std::marker - Rust]]
+
+*** Summary of Ownership
+
+1. 所有权：一个值只能被一个变量所拥有，且同一时刻只能有一个所有者，当所有者离开作用域，其拥有的值被丢弃，内存得到释放。
+2. Move 语义：赋值或者传参会导致值 Move，所有权被转移，一旦所有权转移，之前的变量就不能访问。
+3. Copy 语义：如果值实现了 Copy trait，那么赋值或传参会使用 Copy 语义，相应的值会被按位拷贝（浅拷贝），产生新的值。
+
+[[https://cdn.jsdelivr.net/gh/lroolle/p/s/20211121T163147-owerner-926e.png]]
+
+**** Q: 所有的值都会 Move 吗？
+> [[id:20211121T164018.339612][所有权和 Move 语义]]
+#+begin_src rust :exports both
+// v也会被移动吧？
+fn find_pos(data: Vec<u32>, v: u32) -> Option<usize>
+#+end_src
+main () 函数传递给 find_pos () 函数的另一个参数 v，也会被移动吧？为什么图上并没有将其标灰？
+
+**** Q: 在 Rust 里，分配在堆上的数据结构可以引用栈上的数据么？为什么？
+*** Read More
+1. Copy And Drop Trait
+    Rust 在设计时就已经保证了你无法为一个在堆上分配内存的结构实现 Copy。所以 Vec / String 等结构是不能实现 Copy 的。因为这条路已经被堵死了：Copy trait 和 Drop trait 不能共存。一旦你实现了 Copy trait，就无法实现 Drop trait。反之亦然。
+2. 有同学看到裸指针 *const T/ *mut T 实现了 Copy，就会想如果我用 unsafe 把 Vec<T> 的指针取出来，组成一个数据结构，到处 Copy，然后其中一个 drop 后，岂不就造成 use after free，破坏了 Rust 的安全性保证？很遗憾，Rust 并不允许你这么做。因为你无法实现 Drop。
+#+begin_src rust :exports both
+use std::{fmt, slice};
+
+#[derive(Clone, Copy)]
+struct RawBuffer {
+    ptr: *mut u8,
+    len: usize,
+}
+
+impl From<Vec<u8>> for RawBuffer {
+    fn from(vec: Vec<u8>) -> Self {
+        let slice = vec.into_boxed_slice();
+        Self {
+            len: slice.len(),
+            // into_raw 之后，Box 就不管这块内存的释放了，RawBuffer 需要处理
+            ptr: Box::into_raw(slice) as *mut u8,
+        }
+    }
+}
+
+// 如果 RawBuffer 实现了 Drop trait，就可以在所有者退出时释放堆内存
+// 然后，Drop trait 会跟 Copy trait 冲突，要么不实现 Copy，要么不实现 Drop
+// 如果不实现 Drop，那么就会导致内存泄漏，但它不会对正确性有任何破坏
+// 比如不会出现 use after free 这样的问题。
+// 你可以试着把下面注释掉，看看会出什么问题
+// impl Drop for RawBuffer {
+//     #[inline]
+//     fn drop(&mut self) {
+//         let data = unsafe { Box::from_raw(slice::from_raw_parts_mut(self.ptr, self.len)) };
+//         drop(data)
+//     }
+// }
+
+impl fmt::Debug for RawBuffer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let data = self.as_ref();
+        write!(f, "{:p}: {:?}", self.ptr, data)
+    }
+}
+
+impl AsRef<[u8]> for RawBuffer {
+    fn as_ref(&self) -> &[u8] {
+        unsafe { slice::from_raw_parts(self.ptr, self.len) }
+    }
+}
+
+fn main() {
+    let data = vec![1, 2, 3, 4];
+
+    let buf: RawBuffer = data.into();
+
+    // 因为 buf 允许 Copy，所以这里 Copy 了一份
+    use_buffer(buf);
+
+    // buf 还能用
+    println!("buf: {:?}", buf);
+}
+
+fn use_buffer(buf: RawBuffer) {
+    println!("buf to die: {:?}", buf);
+
+    // 这里不用特意 drop，写出来只是为了说明 Copy 出来的 buf 被 Drop 了
+    drop(buf)
+}
+#+end_src
+
+#+results:
+: buf to die: 0x7fc103402830: [1, 2, 3, 4]
+: buf: 0x7fc103402830: [1, 2, 3, 4]
+** TODO 08｜所有权：值的借用是如何工作的？
+:LOGBOOK:
+- State "TODO"       from              [2021-12-21 Tue 22:48]
+:END:
+*** Borrow 语义
+Borrow 语义允许一个值的所有权，在不发生转移的情况下，被其它上下文使用。
+
+**** 借用 vs 引用
+1. 在其他语言中，引用是一种别名，你可以简单理解成鲁迅之于周树人，多个引用拥有对值的无差别的访问权限，本质上是共享了所有权；
+2. 而在 Rust 下，所有的引用都只是借用了 “临时使用权”，它并不破坏值的单一所有权约束。
+3. 因此 *默认情况下，Rust 的借用都是只读的*
+*** 只读借用 / 引用
+> [[id:20211121T170023.531107][数据（值、类型、指针、引用）：程序操作的对象]]: 本质上，引用是一个受控的指针
+**** 传值（pass-by-value）和传引用（pass-by-reference）
+
+[[https://cdn.jsdelivr.net/gh/lroolle/p/s/20211121T170241-pass_by_value_or_ref-f500.png]]
+
+但 Rust 没有传引用的概念， *Rust 所有的参数传递都是传值* ，不管是 Copy 还是 Move。所以在 Rust 中，你必须显式地把某个数据的引用，传给另一个函数。
+
+#+begin_src rust :exports both
+fn main() {
+    let data = vec![1, 2, 3, 4];
+    println!(
+        "addr of items: [{:p}, {:p}, {:p}, {:p}]",
+        &data[0], &data[1], &data[2], &data[3]
+    );
+    let data1 = &data;
+    // 值的地址是什么？引用的地址又是什么？
+    println!(
+        "addr of value: {:p}({:p}), addr of data {:p}, data1: {:p}",
+        &data, data1, &&data, &data1
+    );
+    println!("sum of data1: {}", sum(data1));
+
+    // 堆上数据的地址是什么？
+    println!(
+        "addr of items: [{:p}, {:p}, {:p}, {:p}]",
+        &data[0], &data[1], &data[2], &data[3]
+    );
+}
+
+fn sum(data: &Vec<u32>) -> u32 {
+    // 值的地址会改变么？引用的地址会改变么？
+    println!("addr of value: {:p}, addr of ref: {:p}", data, &data);
+    // data.iter().fold(0, |acc, x| acc + x)
+    data.iter().sum()
+}
+#+end_src
+
+#+results:
+: addr of items: [0x7fce4ac02830, 0x7fce4ac02834, 0x7fce4ac02838, 0x7fce4ac0283c]
+: addr of value: 0x7ffee94bf2c8(0x7ffee94bf2c8), addr of data 0x7ffee94bf438, data1: 0x7ffee94bf390
+: addr of value: 0x7ffee94bf2c8, addr of ref: 0x7ffee94bf038
+: sum of data1: 10
+: addr of items: [0x7fce4ac02830, 0x7fce4ac02834, 0x7fce4ac02838, 0x7fce4ac0283c]
+
+[[https://cdn.jsdelivr.net/gh/lroolle/p/s/20211121T171025-val_or_ref_sum_data-3b8f.png]]
+
+data1、&data 和传到 sum () 里的 data1’ 都指向 data 本身，这个值的地址是固定的。但是它们引用的地址都是不同的，这印证了我们讲 Copy trait 的时候，介绍过只读引用实现了 Copy trait，也就意味着引用的赋值、传参都会产生新的浅拷贝。
+
+*** 借用的生命周期及其约束
+**** Q: 一旦 data 离开了作用域被释放，如果还有引用指向 data，岂不是造成我们想极力避免的使用已释放内存（use after free）这样的内存安全问题？怎么办呢？
+**** 借用不能超过（outlive）值的生存期。
+#+begin_src rust :exports both
+fn main() {
+    let r = local_ref();
+    println!("r: {:p}", r);
+}
+
+fn local_ref<'a>() -> &'a i32 {
+    let a = 42;
+    &a
+}
+#+end_src
+
+#+begin_example
+error[E0515]: cannot return reference to local variable `a`
+ --> src/main.rs:9:5
+  |
+9 |     &a
+  |     ^^ returns a reference to data owned by the current function
+#+end_example
+
+**** Q: 如果我们在堆内存中，使用栈内存的引用，可以么？
+#+begin_src rust :exports both
+let mut data: Vec<&u32> = Vec::new();
+let v = 42;
+data.push(&v);
+println!("data: {:?}", data);
+#+end_src
+
+#+results:
+: data: [42]
+
+#+begin_src rust :exports both
+fn main() {
+    let mut data: Vec<&u32> = Vec::new();
+    push_local_ref(&mut data);
+    println!("data: {:?}", data);
+}
+
+fn push_local_ref(data: &mut Vec<&u32>) {
+    let v = 42;
+    data.push(&v);
+}
+#+end_src
+
+#+begin_example
+error[E0597]: `v` does not live long enough
+  --> src/main.rs:10:15
+   |
+8  | fn push_local_ref(data: &mut Vec<&u32>) {
+   |                                  - let's call the lifetime of this reference `'1`
+9  |     let v = 42;
+10 |     data.push(&v);
+   |     ----------^^-
+   |     |         |
+   |     |         borrowed value does not live long enough
+   |     argument requires that `v` is borrowed for `'1`
+11 | }
+   | - `v` dropped here while still borrowed
+#+end_example
+
+堆变量的生命周期不具备任意长短的灵活性，因为堆上内存的生死存亡，跟栈上的所有者牢牢绑定。
+而栈上内存的生命周期，又跟栈的生命周期相关， *所以我们核心只需要关心调用栈的生命周期。*
+
+[[https://cdn.jsdelivr.net/gh/lroolle/p/s/20211121T172202-val_ref_lifetime-2885.png]]
+
+***** lifetime?
+
+#+begin_src rust :exports both
+fn main() {
+    let mut data: Vec<&u32> = Vec::new();
+    push_local_ref(&mut data);
+    println!("data: {:?}", data);
+}
+
+fn push_local_ref(data: &mut Vec<&u32>) {
+    let v = 42;
+    data.push(&v);
+}
+#+end_src
+
+#+results:
+: error: Could not compile `cargoilUFlo`.
+*** 可变借用 / 引用
+**** Q: 多个可变引用共存？
+#+begin_src rust :exports both
+fn main() {
+    let mut data = vec![1, 2, 3];
+
+    for item in data.iter_mut() {
+        data.push(*item + 1);
+    }
+}
+#+end_src
+
+#+begin_example
+error[E0499]: cannot borrow `data` as mutable more than once at a time
+ --> src/main.rs:6:9
+  |
+5 |     for item in data.iter_mut() {
+  |                 ---------------
+  |                 |
+  |                 first mutable borrow occurs here
+  |                 first borrow later used here
+6 |         data.push(*item + 1);
+  |         ^^^^ second mutable borrow occurs here
+#+end_example
+
+#+begin_quote
+这段代码在遍历可变数组 data 的过程中，还往 data 里添加新的数据，这是很危险的动作，因为它破坏了循环的不变性（loop invariant），容易导致死循环甚至系统崩溃。所以，在同一个作用域下有多个可变引用，是不安全的。
+#+end_quote
+**** Q: 同时有一个可变引用和若干个只读引用，会有问题吗？
+#+begin_src rust :exports both
+let mut data = vec![1, 2, 3];
+let data1 = vec![&data[0]];
+println!("data[0]: {:p}", &data[0]);
+
+for i in 0..100 {
+    data.push(i);
+}
+
+println!("data[0]: {:p}", &data[0]);
+println!("boxed: {:p}", &data1);
+#+end_src
+
+#+begin_example
+error[E0502]: cannot borrow `data` as mutable because it is also borrowed as immutable
+  --> src/main.rs:8:5
+   |
+4  | let data1 = vec![&data[0]];
+   |                   ---- immutable borrow occurs here
+...
+8  |     data.push(i);
+   |     ^^^^^^^^^^^^ mutable borrow occurs here
+...
+12 | println!("boxed: {:p}", &data1);
+   |                         ------ immutable borrow later used here
+
+#+end_example
+
+#+begin_quote
+如果继续添加元素，堆上的数据预留的空间不够了，就会重新分配一片足够大的内存，把之前的值拷过来，然后释放旧的内存。这样就会让 data1 中保存的 &data[0] 引用失效，导致内存安全问题。
+#+end_quote
+
+**** Rust 的限制
+这两种问题，通过 GC 等自动内存管理方案可以避免第二种，但是第一个问题 GC 也无济于事。
+
+1. 多个可变引用共存
+2. 可变引用和只读引用共存
+
+比如 Python:
+
+#+begin_src python :exports both :results output
+if __name__ == "__main__":
+    data = [1, 2]
+    for item in data:
+        data.append(item + 1)
+        print(item) # prints forever
+
+    # unreachable code
+    print(data)
+#+end_src
+
+- 在 Rust 中：
+  1. 在一个作用域内，仅允许一个活跃的可变引用。所谓活跃，就是真正被使用来修改数据的可变引用，如果只是定义了，却没有使用或者当作只读引用使用，不算活跃;
+  2. 在一个作用域内，活跃的可变引用（写）和只读引用（读）是互斥的，不能同时存在。（类比 RwLock）
+
+*** Summary of Borrowing
+1. 一个值在同一时刻只有一个所有者。
+2. 当所有者离开作用域，其拥有的值会被丢弃。
+3. 赋值或者传参会导致值 Move，所有权被转移，一旦所有权转移，之前的变量就不能访问。
+4. 如果值实现了 Copy trait，那么赋值或传参会使用 Copy 语义，相应的值会被按位拷贝，产生新的值。
+5. 一个值可以有多个只读引用。
+6. 一个值可以有唯一一个活跃的可变引用。
+7. 可变引用（写）和只读引用（读）是互斥的关系，就像并发下数据的读写互斥那样。
+8. 引用的生命周期不能超出值的生命周期。
+
+   [[https://cdn.jsdelivr.net/gh/lroolle/p/s/20211121T194957-08_summary_borrow-042d.png]]
+**** Q: 上一讲我们在讲 Copy trait 时说到，可变引用没有实现 Copy trait。结合这一讲的内容，想想为什么？
+**** Q: 下面这段代码，如何修改才能使其编译通过，避免同时有只读引用和可变引用？
+#+begin_src rust :exports both
+let mut arr = vec![1, 2, 3];
+// cache the last item
+let last = arr.last();
+arr.push(4);
+// consume previously stored last item
+println!("last: {:?}", last);
+#+end_src
+
+#+results:
+: error: Could not compile `cargofSLYah`.
+
+*** Read More
+
+#+begin_src rust :exports both
+use std::mem;
+
+fn main() {
+    // capacity 是 1, len 是 0
+    let mut v = vec![1];
+    // capacity 是 8, len 是 0
+    let v1: Vec<i32> = Vec::with_capacity(8);
+
+    print_vec("v1", v1);
+
+    // 我们先打印 heap 地址，然后看看添加内容是否会导致堆重分配
+    println!("heap start: {:p}", &v[0] as *const i32);
+
+    extend_vec(&mut v);
+
+    // heap 地址改变了！这就是为什么可变引用和不可变引用不能共存的原因
+    println!("new heap start: {:p}", &v[0] as *const i32);
+
+    print_vec("v", v);
+}
+
+fn extend_vec(v: &mut Vec<i32>) {
+    // Vec<T> 堆内存里 T 的个数是指数增长的，我们让它恰好 push 33 个元素
+    // capacity 会变成 64
+    (2..34).into_iter().for_each(|i| v.push(i));
+}
+
+fn print_vec<T>(name: &str, data: Vec<T>) {
+    let p: [usize; 3] = unsafe { mem::transmute(data) };
+    // 打印 Vec<T> 的堆地址，capacity，len
+    println!("{}: 0x{:x}, {}, {}", name, p[0], p[1], p[2]);
+}
+#+end_src
+
+#+results:
+: v1: 0x7ff87c402920, 8, 0
+: heap start: 0x7ff87c402830
+: new heap start: 0x7ff87c402a20
+: v: 0x7ff87c402a20, 64, 33
+
+** TODO 09｜所有权：一个值可以有多个所有者么？
+** TODO 10｜生命周期：你创建的值究竟能活多久？
+** TODO 11｜内存管理：从创建到消亡，值都经历了什么？  加餐｜愚昧之巅：你的 Rust 学习常见问题汇总
+** TODO 12｜类型系统：Rust 的类型系统有什么特点[[https://en.wikipedia.org/wiki/Open%E2%80%93closed_principle][Open–closed principle - Wikipedia]]？
+** TODO 13｜类型系统：如何使用 trait 来定义接口？
+** TODO 14｜类型系统：有哪些必须掌握的 Trait？
+** TODO 15｜数据结构：这些浓眉大眼的结构竟然都是智能指针？
+** TODO 16｜数据结构：Vec<T>、&[T]、Box<[T]> ，你真的了解集合容器么？
+** TODO 17｜数据结构：软件系统核心部件哈希表，内存如何布局？
+** TODO 18｜错误处理：为什么 Rust 的错误处理与众不同？
+** TODO 19｜闭包：FnOnce、FnMut 和 Fn，为什么有这么多类型？
+** TODO 20｜4 Steps ：如何更好地阅读 Rust 源码？
+** TODO 21｜阶段实操（1）：构建一个简单的 KV server - 基本流程 14%
+** TODO 22｜阶段实操（2）：构建一个简单的 KV server - 基本流程
+:LOGBOOK:
+- State "TODO"       from              [2021-12-21 Tue 22:58]
+:END:
+* 期中周 (2 讲)
+** TODO 加餐｜期中测试：来写一个简单的 grep 命令行
+** TODO 加餐｜期中测试：参考实现讲解
+:LOGBOOK:
+- State "TODO"       from              [2021-12-21 Tue 23:01]
+:END:
+* 进阶篇 (11 讲)
+** TODO 23｜类型系统：如何在实战中使用泛型编程？
+** TODO 24｜类型系统：如何在实战中使用 Trait Object？
+** TODO 25｜类型系统：如何围绕 Trait 来设计和架构系统？
+:LOGBOOK:
+- State "TODO"       from              [2021-12-21 Tue 22:59]
+:END:
+** TODO 加餐｜Rust2021 版次问世了！
+:LOGBOOK:
+- State "TODO"       from              [2021-12-21 Tue 22:59]
+:END:
+** TODO 26｜阶段实操（3）：构建一个简单的 KV server - 高级 trait 技巧
+** TODO 27｜生态系统：有哪些常有的 Rust 库可以为我所用？
+** TODO 28｜网络开发（上）：如何使用 Rust 处理网络请求？
+** TODO 29｜网络开发（下）：如何使用 Rust 处理网络请求？
+** TODO 30｜Unsafe Rust：如何用 C++ 的方式打开 Rust？
+** TODO 31｜FFI：Rust 如何和你的语言架起沟通桥梁？
+** TODO 32｜实操项目：使用 PyO3 开发 Python3 模块
+:LOGBOOK:
+- State "TODO"       from              [2021-12-21 Tue 22:59]
+:END:
+* 并发篇 (11 讲)
+** TODO 33｜并发处理（上）：从 atomics 到 Channel，Rust 都提供了什么工具？
+** TODO 34｜并发处理（下）：从 atomics 到 Channel，Rust 都提供了什么工具？
+** TODO 35｜实操项目：如何实现一个基本的 MPSC channel？
+** TODO 用户故事｜绝望之谷：改变从学习开始
+:LOGBOOK:
+- State "TODO"       from              [2021-12-21 Tue 23:00]
+:END:
+** TODO 36｜阶段实操（4）：构建一个简单的 KV server - 网络处理
+** TODO 37｜阶段实操（5）：构建一个简单的 KV server - 网络安全
+** TODO 38｜异步处理：Future 是什么？它和 async/await 是什么关系？
+** TODO 39｜异步处理：async/await 内部是怎么实现的？
+** TODO 40｜异步处理：如何处理异步 IO？
+** TODO 41｜阶段实操（6）：构建一个简单的 KV server - 异步处理 4%
+** TODO 42｜阶段实操（7）：构建一个简单的 KV server - 如何做大的重构？
+:LOGBOOK:
+- State "TODO"       from              [2021-12-21 Tue 22:59]
+:END:
+* 实战篇 (6 讲)
+** TODO 43｜生产环境：真实世界下的一个 Rust 项目包含哪些要素？
+** TODO 44｜数据处理：应用程序和数据如何打交道？
+** TODO 45｜阶段实操（8）：构建一个简单的 KV server- 配置 / 测试 / 监控 / CI/CD
+** TODO 46｜软件架构：如何用 Rust 架构复杂系统？
+** TODO 大咖助场｜开悟之坡（上）：Rust 的现状、机遇与挑战
+** TODO 大咖助场｜开悟之坡（下）：Rust 的现状、机遇与挑战
+:LOGBOOK:
+- State "TODO"       from              [2021-12-21 Tue 23:00]
+:END:

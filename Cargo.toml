@@ -1,0 +1,10 @@
+[workspace]
+members = [
+    "httpie",
+    "rusteqe",
+    "thumbors",
+]
+exclude = [
+    "quer"
+]
+
